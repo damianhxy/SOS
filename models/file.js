@@ -16,12 +16,14 @@ Promise.promisifyAll(fs);
 // File Object: File name, path, owner, parts, required parts, time, description
 
 exports.add = function(req) {
+    console.log("Adding", req.body);
+    console.log("Files", req.file)
     // Details
     var minimum = req.body.minimumShares;
     var total = req.body.totalShares;
     var name = req.body.name;
     var description = req.body.description;
-    var filePath = req.body.file.path;
+    var filePath = req.file.path;
     // Generate key
     var password = keygen.password();
     var shares = sssa.create(minimum, total, password);

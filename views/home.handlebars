@@ -1,5 +1,15 @@
 {{#if files}}
-    Has Files
+    <div class="row">
+    {{each}}
+        <div class="card" style="width:400px">
+            <img class="card-img-top" src="sos-file.png" alt="File image">
+            <div class="card-body">
+                <h4 class="card-title">{{name}}</h4>
+                <a href="{{id}}" class="btn btn-primary">More Details</a>
+          </div>
+        </div>
+    {{/each}}
+    </div>
 {{else}}
     <div class="alert alert-info" role="alert">
         You haven't uploaded any files yet.
