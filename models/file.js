@@ -42,8 +42,8 @@ exports.add = function(req) {
         };
         return files.insertAsync(fileInfo);
     })
-    .then(function() {
-        return shares;
+    .then(function(file) {
+        return [file._id, shares];
     });
 };
 
@@ -68,7 +68,7 @@ exports.decrypt = function(shares, id) {
     var secret = sssa.combine(shares);
     return files.findOneAsync({ _id: id })
     .then(function(file) {
-       return encryptor.decryptFileAsync(file.path, file.path.slice(0, -4), secret)
+       return encryptor.decryptFileAsync(file.path + ".dat", file.path, secret)
        .then(function() {
            return file;
        });
@@ -79,7 +79,7 @@ exports.delete = function(user, id) {
     return files.findOneAsync({ _id: id })
     .then(function(file) {
         if (file.owner !== user) throw Error("Not owner");
-        return fs.unlinkAsync(file.path)
+        return fs.unlinkAsync(file.path + ".dat")
         .then(function() {
             return files.removeAsync({ _id: id })
         });
