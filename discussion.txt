@@ -1,0 +1,45 @@
+Login/Logout - Passport
+After
+
+Landing Page - Login + Information (look at nodenode?)
+Main Page
+    - Logout
+    - View all owned files
+        - Upon Hover, display re-encrypt and link to more details
+    - top bar
+        - Search
+        - Sort
+Side Bar
+    - Settings?
+    - Upload
+    - Logout
+    - "hi, username" top left
+
+Page with more details on files
+    These are hidden things
+    - Name
+    - Date created
+    - Regenerate
+    - Delete
+    - Share
+    Publicly displayed
+    - Decrypt
+    
+Upload page
+    - Name
+    - Description
+    - Encrypt
+    - Final Shares
+
+Files must have:
+    - id
+    - name given by user
+    - description
+    - timestamp
+    - user
+    - url
+    
+[STRETCH GOALS]
+Notification system
+Edit Passwords
+Expiration date for files
