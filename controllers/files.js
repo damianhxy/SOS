@@ -6,6 +6,31 @@ var file = require("../models/file.js");
 var auth = require("../middlewares/auth.js");
 var upload = require("../middlewares/upload.js");
 
+router.get("/", auth, function(req, res) {
+    res.render("upload", {
+        user: req.user,
+        title: "Upload"
+    });
+});
+
+router.post("/", auth, function(req, res) { // Upload
+    upload(req, res, function(err) {
+        if (err) {
+            console.error(err);
+            res.status(400).send("Upload Failed");
+        } else {
+            file.add(req)
+            .then(function(shares) {
+                res.send(shares);
+            })
+            .catch(function(err) {
+               console.error(err);
+               res.status(400).send("File uploaded but failed");
+            });
+        }
+    });
+});
+
 router.post("/decrypt/:id", auth, function(req, res) { // Decrypt
     file.decrypt(req.body.shares, req.params.id)
     .then(function(file) {
@@ -22,24 +47,6 @@ router.post("/regen/:id", auth, function(req, res) {
    .then(function(shares) {
       res.json(shares); 
    });
-});
-
-router.post("/", auth, function(req, res) { // Upload
-    upload(req, res, function(err) {
-        if (err) {
-            console.error(err);
-            res.status(400).send("Upload Failed");
-        } else {
-            file.add(req)
-            .then(function(shares) {
-                res.json(shares);
-            })
-            .catch(function(err) {
-               console.error(err);
-               res.status(400).send("File uploaded but failed");
-            });
-        }
-    });
 });
 
 router.delete("/:id", auth, function(req, res) { // Delete

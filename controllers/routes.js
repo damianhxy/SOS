@@ -1,5 +1,6 @@
 var express = require("express");
 var settings = require("./settings.js");
+var file = require("../models/file.js");
 var router = express.Router();
 
 /* Pages */
@@ -7,18 +8,23 @@ var router = express.Router();
 router.get("/", function(req, res) {
     if (req.user) {
         res.redirect("/home");
+    } else {
+        res.render("landing", {
+           title: "SOS",
+           layout: false
+        });   
     }
-    res.render("landing", {
-       title: "SOS",
-       layout: false
-    });
 });
 
 router.get("/home", function(req, res) {
-    res.render("home", {
-       title: "Home",
-       user: req.user
-    }) 
+    file.getUserFiles(req.user.username)
+    .then(function(files) {
+        res.render("home", {
+           title: "Home",
+           user: req.user,
+           files: files
+        }); 
+    });
 });
 
 /* Users */

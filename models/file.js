@@ -21,7 +21,7 @@ exports.add = function(req) {
     var total = req.body.totalShares;
     var name = req.body.name;
     var description = req.body.description;
-    var filePath = req.file.path;
+    var filePath = req.body.file.path;
     // Generate key
     var password = keygen.password();
     var shares = sssa.create(minimum, total, password);
@@ -78,5 +78,20 @@ exports.delete = function(user, id) {
         if (file.owner !== user) throw Error("Not owner");
         return fs.unlinkAsync(file.path)
         .then(files.removeAsync({ _id: id }));
+    });
+}
+
+exports.getUserFiles = function(user) {
+    return files.find({ 
+       $where: function() {
+           return this.owner === user;
+       } 
+    })
+    .sort({
+        time: 1
+    })
+    .execAsync()
+    .then(function(ret) {
+        return ret;
     });
 }

@@ -14,9 +14,25 @@
     <script src="/js/jquery-3.3.1.min.js"></script>
 </head>
 <body>
-    {{{body}}}
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="nav col-sm-2 flex-column">
+                <a class="nav-link" href="/home">Home</a>
+                <a class="nav-link" href="/files">Upload</a>
+                {{#if user}}
+                <a class="nav-link disabled" href="#">{{user.username}}</a>
+                <a class="nav-link" href="/users/signout">Sign Out</a>
+                {{/if}}
+            </nav>
+            <div class="col-sm-10">
+                {{{body}}}
+                <p class="mt-5 mb-3 text-muted">SOS &copy; 2018</p>
+            </div>
+        </div>
+    </div>
     <!-- SCRIPTS -->
     <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/custom/main.js"></script>
     <!-- /SCRIPTS -->
 </body>
 </html>
