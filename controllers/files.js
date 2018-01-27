@@ -25,9 +25,11 @@ router.post("/decrypt/:id", function(req, res) { // Decrypt
     var shares = req.body.shares.split(/\s+/);
     file.decrypt(shares, req.params.id)
     .then(function(file) {
-        res.download(file.path, file.name, function(err) {
-            if (err) console.error(err);
-            else fs.unlinkAsync(file.path);
+        var stream = fs.createReadStream(file.path);
+        stream.pipe(res);
+        stream.on("close", function() {
+            console.log("Deleting file");
+            fs.unlinkAsync(file.path)
         });
     })
     .catch(function(err) {
@@ -40,8 +42,7 @@ router.put("/regenerate/:id", auth, function(req, res) {
     var shares = req.body.shares.split(/\s+/);
     file.regenerate(req.user.username, shares, req.params.id)
     .then(function(shares) {
-       req.session.success = shares.join("\n");
-       res.redirect("/files/" + req.params.id);
+        res.send(shares.join("\n"));
     });
 });
 

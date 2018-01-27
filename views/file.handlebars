@@ -27,8 +27,8 @@
         var nstring = 0;
         var string = $("#shares").val().replace(/\s/g,'');
         $("#fshares").val("");
-        while(nstring*88 < string.length ) {
-            $("#fshares").val($("#fshares").val() + string.slice(nstring*88, (nstring+1)*88) + "\n");
+        while(nstring*88 < string.length) {
+            $("#fshares").val($("#fshares").val() + (nstring + 1).toString() + ": " + string.slice(nstring*88, (nstring+1)*88) + "\n");
             nstring++;
         }
         $("#submitted").text(nstring + " out of {{file.minimum}} required");
@@ -40,8 +40,8 @@
                 url: "/files/regenerate/" + "{{file._id}}",
                 data: { shares: $("#shares").val() }
             })
-            .then(function() {
-                location.reload();
+            .then(function(shares) {
+                alert(shares);
             })
             .fail(function(err) {
                 alert("Regenerate failed!", err);
