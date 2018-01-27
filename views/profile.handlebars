@@ -1,0 +1,21 @@
+<div class="text-center container-fluid">
+  <h1 class="h3 mb-3 font-weight-normal">Edit Password</h1>
+  <div class="row text-center">
+    <form action="/users/editPassword" method="post" class="form-upload form-horizontal col-10" accept-charset="UTF-8"  autocomplete="off">
+      <div class="form-group">
+        <div class="row mb-1 text-left">    
+          <span class="col-3">Current</span>
+          <input type="password" name="currentPassword" class="form-control col-9" required>
+        </div>
+        <div class="row mb-1 text-left">
+          <label class="col-3">New</label>
+          <input type="password" name="newPass" class="form-control col-9" required>
+        </div>
+        <div class="row mb-1 text-left">
+          <label class="col-3">Repeat</label>
+          <input type="password" name="newPass2" class="form-control col-9" required>
+        </div>
+      <input class="btn btn-lg btn-primary btn-block" type="submit" value="Submit">
+    </form>
+  </div>
+</div>

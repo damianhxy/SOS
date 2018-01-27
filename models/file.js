@@ -51,12 +51,16 @@ exports.regenerate = function(user, shares, id) {
     files.findOneAsync({ _id: id })
     .then(function(file) {
         if (file.owner !== user) throw Error("Not owner");
-        return exports.decrypt()
+        return exports.decrypt(shares, id)
         .then(function() {
             var password = keygen.password();
             var shares = sssa.create(file.minimum, file.total, password);
+            console.log("Original path", file.path);
+            console.log("Encrypted path", path.join(file.path, ".dat"));
             return encryptor.encryptFileAsync(file.path, path.join(file.path, ".dat"), password)
-            .then(fs.unlinkAsync(path))
+            .then(function() {
+                return fs.unlinkAsync(path)
+            })
             .then(function() {
                 return shares;
             });
@@ -65,7 +69,9 @@ exports.regenerate = function(user, shares, id) {
 }
 
 exports.decrypt = function(shares, id) {
+    console.log("Shares", shares);
     var secret = sssa.combine(shares);
+    console.log("Secret is", secret);
     return files.findOneAsync({ _id: id })
     .then(function(file) {
        return encryptor.decryptFileAsync(file.path + ".dat", file.path, secret)

@@ -11,6 +11,7 @@ var exphbs = require("express-handlebars");
 var localStrategy = require("passport-local");
 var dateFormat = require("dateformat");
 var nedbStore = require("express-nedb-session")(session);
+var methodOverride = require("method-override");
 
 module.exports = function(app, express) {
     require("console-stamp")(console, {
@@ -38,6 +39,7 @@ module.exports = function(app, express) {
         saveUninitialized: false,
         store: new nedbStore({ filename: "nedb_sessionstore" })
     }));
+    app.use(methodOverride('_method'));
     app.use(passport.initialize());
     app.use(passport.session());
 

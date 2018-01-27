@@ -14,22 +14,34 @@
     <script src="/js/jquery-3.3.1.min.js"></script>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <nav class="nav col-sm-2 flex-column">
-                <a class="nav-link" href="/home">Home</a>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <nav class="nav col-sm-2 flex-column leftnav">
+                <img class="mb-4 ml-4" src="/img/sos-landing.png" alt="" width="128" height="128">
                 {{#if user}}
+                <a class="nav-link" href="/home">Home</a>
                 <a class="nav-link" href="/files">Upload</a>
-                <a class="nav-link disabled" href="#">{{user.username}}</a>
+                <a class="nav-link" href="/users">{{user.username}}</a>
                 <a class="nav-link" href="/users/signout">Sign Out</a>
+                {{else}}
+                <span class="nav-link font-weight-bold">Welcome guest!</span>
+                <a class="nav-link" href="/">Home</a>
                 {{/if}}
                 <a class="nav-link disabled" href="#">SOS &copy; 2018</a>
             </nav>
-            <div class="col-sm-10">
+            <div class="col-sm-10 pl-4">
                 {{{body}}}
                 {{#if success}}
                 <div class="alert alert-success alert-dismissable fade show" role="alert">
-                    {{success}}
+                    {{{success}}}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                {{/if}}
+                {{#if error}}
+                <div class="alert alert-danger alert-dismissable fade show" role="alert">
+                    {{{error}}}
                     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>

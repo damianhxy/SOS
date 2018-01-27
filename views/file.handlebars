@@ -6,30 +6,45 @@
     <h5 class="mb-2 font-weight-normal">Uploaded <span data-livestamp="{{file.time}}"></span></h5>
     <h5 class="mb-2 font-weight-normal">Owner: {{file.owner}} {{#if isOwner}}(You){{/if}}</h5>
     <h5 class="mb-2 font-weight-normal">{{file.minimum}} of {{file.total}} shares required</h5>
-    <form action="/decrypt/{{_id}}" autocomplete="off" method="post">
-        <span>Shares for Decryption</span>
-        <textarea class="form-control mb-3" row="10" placeholder="Insert your shares"></textarea>
+    <form action="/files/decrypt/{{file._id}}" method="post" accept-charset="UTF-8" autocomplete="off">
+        <span id="sharetext">Shares for Decryption</span>
+        <textarea name="shares" id="shares" class="form-control mb-3" rows="2" placeholder="Insert your shares" required></textarea>
+        <span id="submitted">Submitted Hashes: 0 out of {{file.minimum}} required</span>
+        <textarea name="sharesformatted" id="fshares" class="form-control mb-3" rows="5" disabled></textarea>
         <button class="btn btn-md btn-primary mb-3">Submit</button>
     </form>
     {{#if isOwner}}
-    <button id="regenerate" class="btn btn-md btn-success">Regenerate</button>
-    <button id="delete" class="btn btn-md btn-danger">Delete</button>
+    <div class="btn-group">
+        <button id="regenerate" class="btn btn-md btn-success">Regenerate</button>
+        <button id="delete" class="btn btn-md btn-danger">Delete</button>
+    </div>
     {{/if}}
+    <p><small>Share this file via the URL!</small></p>
 </div>
 <script>
     $(function() {
+    $("#shares").on("input", function() {
+        var nstring = 0;
+        var string = $("#shares").val().replace(/\s/g,'');
+        $("#fshares").val("");
+        while(nstring*88 < string.length ) {
+            $("#fshares").val($("#fshares").val() + string.slice(nstring*88, (nstring+1)*88) + "\n");
+            nstring++;
+        }
+        $("#submitted").text(nstring + " out of {{file.minimum}} required");
+    })
     $("#regenerate").click(function(e) {
-        e.preventDefault();
         if (confirm("Are you sure you want to regenerate?"))
             $.ajax({
                 type: "put",
                 url: "/files/regenerate/" + "{{file._id}}",
+                data: { shares: $("#shares").val() }
             })
             .then(function() {
-               location.reload();
+                location.reload();
             })
-            .catch(function(err) {
-               alert("Regeneration failed!", err);
+            .fail(function(err) {
+                alert("Regenerate failed!", err);
             });
     });
     $("#delete").click(function(e) {

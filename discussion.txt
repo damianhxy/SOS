@@ -40,6 +40,4 @@ Files must have:
     - url
     
 [STRETCH GOALS]
-Notification system
-Edit Passwords
 Expiration date for files

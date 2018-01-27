@@ -15,11 +15,33 @@ router.get("/", auth, function(req, res) {
 
 router.post("/", auth, upload, function(req, res) { // Upload
     file.add(req)
+    .then(function(ret) {
+        req.session.success = ret[1].join("\n");
+        res.redirect("/files/" + ret[0]);
+    });
+});
+
+router.post("/decrypt/:id", function(req, res) { // Decrypt
+    var shares = req.body.shares.split(/\s+/);
+    file.decrypt(shares, req.params.id)
+    .then(function(file) {
+        res.download(file.path, file.name, function(err) {
+            if (err) console.error(err);
+            else fs.unlinkAsync(file.path);
+        });
+    })
+    .catch(function(err) {
+       req.session.error = err.message;
+       res.status(400).redirect("/files/" + req.params.id);
+    });
+});
+
+router.put("/regenerate/:id", auth, function(req, res) {
+    var shares = req.body.shares.split(/\s+/);
+    file.regenerate(req.user.username, shares, req.params.id)
     .then(function(shares) {
-        var successMessage = "Success! Hashes:\n";
-        successMessage += shares.join("\n");
-        req.session.success = successMessage;
-        res.redirect("/files");
+       req.session.success = shares.join("\n");
+       res.redirect("/files/" + req.params.id);
     });
 });
 
@@ -30,10 +52,11 @@ router.get("/:id", function(req, res) {
             user: req.user,
             title: ret.name,
             file: ret,
-            isOwner: req.user.username === ret.owner
+            isOwner: req.user ? req.user.username === ret.owner : false
         });
     });
 });
+
 
 router.delete("/:id", auth, function(req, res) { // Delete
     file.delete(req.user.username, req.params.id)
@@ -44,24 +67,6 @@ router.delete("/:id", auth, function(req, res) { // Delete
         console.error(err);
         res.status(400).send("Delete failed");
     });
-});
-
-router.post("/decrypt/:id", auth, function(req, res) { // Decrypt
-    file.decrypt(req.body.shares, req.params.id)
-    .then(function(file) {
-        var stream = fs.createReadStream(file.path);
-        stream.pipe(res).once("close", function() {
-            stream.destroy();
-            fs.unlinkAsync(file.path);
-        });
-    });
-});
-
-router.put("/regenerate/:id", auth, function(req, res) {
-   file.regenerate(req.user.username, req.body.shares, req.params.id)
-   .then(function(shares) {
-      res.json(shares); 
-   });
 });
 
 module.exports = router;

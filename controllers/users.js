@@ -4,6 +4,24 @@ var router = express.Router();
 var user = require("../models/user.js");
 var auth = require("../middlewares/auth.js");
 
+router.get("/", function(req, res) {
+    res.render("profile", {
+        title: "Profile",
+        user: req.user
+    }) 
+});
+
+router.post("/editPassword", auth, function(req, res) {
+    user.editPassword(req)
+    .then(function() {
+        res.redirect("/home");
+    })
+    .catch(function(err) {
+        console.error(err);
+        res.status(400).redirect("/users");
+    });
+});
+
 router.post("/signin", function(req, res, next) {
     passport.authenticate("local-signin", function(err, user) {
         if (err) return next(err);

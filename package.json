@@ -30,6 +30,7 @@
     "express-session": "^1.15.6",
     "file-encryptor": "^0.1.1",
     "keygenerator": "^1.0.4",
+    "method-override": "^2.3.10",
     "moment": "^2.20.1",
     "moment-timezone": "^0.5.14",
     "morgan": "^1.9.0",
