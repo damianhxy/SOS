@@ -8,15 +8,15 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
         <title>{{title}} | SOS - Secure Online Sharing</title>
         <link rel="author" href="/humans.txt">
-        <link rel="icon" href="/favicon.ico?v=2">
+        <link rel="icon" href="/img/sos-landing.ico">
         <link rel="stylesheet" href="/css/bootstrap.min.css">
         <link rel="stylesheet" href="/css/main.css">
         <script src="/js/jquery-3.3.1.min.js"></script>
     </head>
     <body>
-        <div class="text-center container-fluid">
+        <div class="text-center container-fluid" style="max-width:800px">
             <div id="row">
-                <img class="mb-12" src="/img/sos-landing.png" alt="" width="128" height="128">
+                <img class="mb-4" src="/img/sos-landing.png" alt="" width="128" height="128">
             </div>
             <div id="row">
                 <img class="mb-4" src="/img/sos-landing2.jpg" alt="" width="400">
@@ -25,37 +25,39 @@
             <div class="row">
                 <div class="col-sm-6">
                     <form action="/users/signin" method="post" accept-charset="UTF-8" autocomplete="off">
-                        <input type="text" name="username" class="form-control" placeholder="Username" required>
-                        <input type="password" name="password" class="form-control" placeholder="Password" required>
+                        <input type="text" name="username" class="form-control mb-1" placeholder="Username" required>
+                        <input type="password" name="password" class="form-control mb-1" placeholder="Password" required>
                         <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
                     </form>
                 </div>
                 <div class="col-sm-6">
                     <form action="/users/signup" method="post" accept-charset="UTF-8" autocomplete="off">
-                        <input type="text" name="username" class="form-control" placeholder="Username" required>
-                        <input type="password" name="password" class="form-control" placeholder="Password" required>
+                        <input type="text" name="username" class="form-control mb-1" placeholder="Username" required>
+                        <input type="password" name="password" class="form-control mb-1" placeholder="Password" required>
                         <button class="btn btn-lg btn-primary btn-block" type="submit">Register</button>
                     </form>
                 </div>
             </div>
-            <h1 class="h3 mt-3 font-weight-normal">What does SOS do?</h1>
-            <div class="row">
-                <div class="col-sm-6">
-                    <h1 class="h5 md-3 font-weight-normal">
-                        Protect your files and data
-                    </h1>
-                    <img class="mb-4" src="/img/eye.png" alt="" height="128"/>
-                    <div id="row">
-                        Store your files securely with Secure Online Sharing and ensure that only people you trust gain access.
+            <div class="landing-bottom">
+                <h1 class="h3 mt-5 font-weight-normal">What does SOS do?</h1>
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h1 class="h5 md-3 font-weight-normal">
+                            Protect your files and data
+                        </h1>
+                        <img class="mb-4" src="/img/eye.png" alt="" height="128"/>
+                        <div class="row text-justify" style="padding-right:10px">
+                            Store your files securely with Secure Online Sharing and ensure that only people you trust gain access.
+                        </div>
                     </div>
-                </div>
-                <div class="col-sm-6">
-                    <h1 class="h5 md-3 font-weight-normal">
-                        Generate shared secrets
-                    </h1>
-                    <img class="mb-4" src="/img/cpu.png" alt="" height="128"/>
-                    <div id="row">
-                        Encrypt your files into shares which can be distributed. To gain access to your files, all the distributed shares must come together.
+                    <div class="col-sm-6">
+                        <h1 class="h5 md-3 font-weight-normal">
+                            Generate shared secrets
+                        </h1>
+                        <img class="mb-4" src="/img/cpu.png" alt="" height="128"/>
+                        <div class="row text-justify" style="padding-left:10px">
+                            Encrypt your files into shares which can be distributed. To gain access to your files, all the distributed shares must come together.
+                        </div>
                     </div>
                 </div>
             </div>

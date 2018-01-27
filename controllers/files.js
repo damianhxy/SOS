@@ -13,21 +13,36 @@ router.get("/", auth, function(req, res) {
     });
 });
 
-router.post("/", auth, function(req, res) { // Upload
-    upload(req, res, function(err) {
-        if (err) {
-            console.error(err);
-            res.status(400).send("Upload Failed");
-        } else {
-            file.add(req)
-            .then(function(shares) {
-                res.send(shares);
-            })
-            .catch(function(err) {
-               console.error(err);
-               res.status(400).send("File uploaded but failed");
-            });
-        }
+router.post("/", auth, upload, function(req, res) { // Upload
+    file.add(req)
+    .then(function(shares) {
+        var successMessage = "Success! Hashes:\n";
+        successMessage += shares.join("\n");
+        req.session.success = successMessage;
+        res.redirect("/files");
+    });
+});
+
+router.get("/:id", function(req, res) {
+    file.get(req.params.id)
+    .then(function(ret) {
+        res.render("file", {
+            user: req.user,
+            title: ret.name,
+            file: ret,
+            isOwner: req.user.username === ret.owner
+        });
+    });
+});
+
+router.delete("/:id", auth, function(req, res) { // Delete
+    file.delete(req.user.username, req.params.id)
+    .then(function() {
+        res.end();
+    })
+    .catch(function(err) {
+        console.error(err);
+        res.status(400).send("Delete failed");
     });
 });
 
@@ -42,22 +57,11 @@ router.post("/decrypt/:id", auth, function(req, res) { // Decrypt
     });
 });
 
-router.post("/regen/:id", auth, function(req, res) {
-   file.regen(req.body.shares, req.params.id)
+router.put("/regenerate/:id", auth, function(req, res) {
+   file.regenerate(req.user.username, req.body.shares, req.params.id)
    .then(function(shares) {
       res.json(shares); 
    });
-});
-
-router.delete("/:id", auth, function(req, res) { // Delete
-    file.delete(req.user.username, req.params.id)
-    .then(function() {
-        res.end();
-    })
-    .catch(function(err) {
-        console.error(err);
-        res.status(400).send("Delete failed");
-    });
 });
 
 module.exports = router;

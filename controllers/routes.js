@@ -2,9 +2,10 @@ var express = require("express");
 var settings = require("./settings.js");
 var file = require("../models/file.js");
 var router = express.Router();
+var notification = require("../middlewares/notification.js");
+router.use(notification);
 
 /* Pages */
-
 router.get("/", function(req, res) {
     if (req.user) {
         res.redirect("/home");
@@ -46,7 +47,7 @@ router.use(function(req, res) {
 
 router.use(function(err, req, res, next) {
     console.error(err.stack);
-    res.send("Internal Server Error")
+    res.send(err.stack);
     /*
     res.status(500).render("500", {
         title: "Internal Server Error",

@@ -1,6 +1,7 @@
 /*global $*/
 /*global location*/
 $(function() {
+    console.info("main.js is running");
     $(".nav-link[href='" + location.pathname + "']").addClass("active");
     
     $("#uploadForm :file").change(function() {

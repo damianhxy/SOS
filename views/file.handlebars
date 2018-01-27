@@ -1,7 +1,51 @@
-{{#if files}}
-    Has Files
-{{else}}
-    <div class="alert alert-info" role="alert">
-        You haven't uploaded any files yet.
-    </div>
-{{/if}}
+<div class="container">
+    <h4 class="mb-2">{{file.name}}</h4>
+    {{#if file.description}}
+    <h5 class="mb-2 font-weight-normal">{{file.description}}</h5>
+    {{/if}}
+    <h5 class="mb-2 font-weight-normal">Uploaded <span data-livestamp="{{file.time}}"></span></h5>
+    <h5 class="mb-2 font-weight-normal">Owner: {{file.owner}} {{#if isOwner}}(You){{/if}}</h5>
+    <h5 class="mb-2 font-weight-normal">{{file.minimum}} of {{file.total}} shares required</h5>
+    <form action="/decrypt/{{_id}}" autocomplete="off" method="post">
+        <span>Shares for Decryption</span>
+        <textarea class="form-control mb-3" row="10" placeholder="Insert your shares"></textarea>
+        <button class="btn btn-md btn-primary mb-3">Submit</button>
+    </form>
+    {{#if isOwner}}
+    <button id="regenerate" class="btn btn-md btn-success">Regenerate</button>
+    <button id="delete" class="btn btn-md btn-danger">Delete</button>
+    {{/if}}
+</div>
+<script>
+    $(function() {
+    $("#regenerate").click(function(e) {
+        e.preventDefault();
+        if (confirm("Are you sure you want to regenerate?"))
+            $.ajax({
+                type: "put",
+                url: "/files/regenerate/" + "{{file._id}}",
+            })
+            .then(function() {
+               location.reload();
+            })
+            .catch(function(err) {
+               alert("Regeneration failed!", err);
+            });
+    });
+    $("#delete").click(function(e) {
+        e.preventDefault();
+        if (confirm("Are you sure you want to delete?"))
+            $.ajax({
+                type: "delete",
+                url: "/files/" + "{{file._id}}"
+            })
+            .then(function() {
+                location.assign("/home");
+            })
+            .fail(function(err) {
+                alert("Delete failed!", err);
+            });
+    });
+});
+</script>
+

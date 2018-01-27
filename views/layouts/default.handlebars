@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>{{title}} | SOS - Secure Online Sharing</title>
     <link rel="author" href="/humans.txt">
-    <link rel="icon" href="/favicon.ico?v=2">
+    <link rel="icon" href="/img/sos-landing.ico">
     <link rel="stylesheet" href="/css/bootstrap.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/jquery-3.3.1.min.js"></script>
@@ -18,21 +18,31 @@
         <div class="row">
             <nav class="nav col-sm-2 flex-column">
                 <a class="nav-link" href="/home">Home</a>
-                <a class="nav-link" href="/files">Upload</a>
                 {{#if user}}
+                <a class="nav-link" href="/files">Upload</a>
                 <a class="nav-link disabled" href="#">{{user.username}}</a>
                 <a class="nav-link" href="/users/signout">Sign Out</a>
                 {{/if}}
+                <a class="nav-link disabled" href="#">SOS &copy; 2018</a>
             </nav>
             <div class="col-sm-10">
                 {{{body}}}
-                <p class="mt-5 mb-3 text-muted">SOS &copy; 2018</p>
+                {{#if success}}
+                <div class="alert alert-success alert-dismissable fade show" role="alert">
+                    {{success}}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                {{/if}}
             </div>
         </div>
     </div>
     <!-- SCRIPTS -->
     <script src="/js/bootstrap.min.js"></script>
-    <script src="/js/custom/main.js"></script>
+    <script src="/js/moment.min.js"></script>
+    <script src="/js/livestamp.min.js"></script>
+    <script src="/js/main.js"></script>
     <!-- /SCRIPTS -->
 </body>
 </html>

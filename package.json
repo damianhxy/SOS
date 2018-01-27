@@ -27,6 +27,7 @@
     "express": "^4.16.2",
     "express-handlebars": "^3.0.0",
     "express-nedb-session": "^0.1.1",
+    "express-session": "^1.15.6",
     "file-encryptor": "^0.1.1",
     "keygenerator": "^1.0.4",
     "moment": "^2.20.1",

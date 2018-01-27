@@ -16,25 +16,25 @@ Promise.promisifyAll(fs);
 // File Object: File name, path, owner, parts, required parts, time, description
 
 exports.add = function(req) {
-    console.log("Adding", req.body);
-    console.log("Files", req.file)
     // Details
     var minimum = req.body.minimumShares;
     var total = req.body.totalShares;
     var name = req.body.name;
     var description = req.body.description;
-    var filePath = req.file.path;
+    var filePath = path.join(path.join(__dirname, "../"), req.file.path);
     // Generate key
     var password = keygen.password();
     var shares = sssa.create(minimum, total, password);
     // Encrypt File
-    return encryptor.encryptFileAsync(filePath, path.join(filePath, ".dat"), password)
-    .then(fs.unlinkAsync(path))
+    return encryptor.encryptFileAsync(filePath, filePath + ".dat", password)
+    .then(function() {
+        return fs.unlinkAsync(filePath);
+    })
     .then(function() {
         var fileInfo = {
             name: name,
-            path: path,
-            owner: req.user,
+            path: filePath,
+            owner: req.user.username,
             total: total,
             minimum: minimum,
             time: moment.tz("Asia/Singapore").format(),
@@ -47,11 +47,12 @@ exports.add = function(req) {
     });
 };
 
-exports.regen = function(shares, id) {
-    exports.decrypt(shares, id)
-    .then(function() {
-        files.findOneAsync({ _id: id })
-        .then(function(file) {
+exports.regenerate = function(user, shares, id) {
+    files.findOneAsync({ _id: id })
+    .then(function(file) {
+        if (file.owner !== user) throw Error("Not owner");
+        return exports.decrypt()
+        .then(function() {
             var password = keygen.password();
             var shares = sssa.create(file.minimum, file.total, password);
             return encryptor.encryptFileAsync(file.path, path.join(file.path, ".dat"), password)
@@ -59,8 +60,8 @@ exports.regen = function(shares, id) {
             .then(function() {
                 return shares;
             });
-        })
-    })
+        });
+    });
 }
 
 exports.decrypt = function(shares, id) {
@@ -70,7 +71,7 @@ exports.decrypt = function(shares, id) {
        return encryptor.decryptFileAsync(file.path, file.path.slice(0, -4), secret)
        .then(function() {
            return file;
-       })
+       });
     });
 }
 
@@ -79,8 +80,14 @@ exports.delete = function(user, id) {
     .then(function(file) {
         if (file.owner !== user) throw Error("Not owner");
         return fs.unlinkAsync(file.path)
-        .then(files.removeAsync({ _id: id }));
+        .then(function() {
+            return files.removeAsync({ _id: id })
+        });
     });
+}
+
+exports.get = function(id) {
+    return files.findOneAsync({ _id: id });
 }
 
 exports.getUserFiles = function(user) {

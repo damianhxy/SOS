@@ -1,11 +1,11 @@
 <div class="text-center container-fluid">
-    <h1 class="h3 mb-3 font-weight-normal">Upload your file!</h1>
-    <div class="row text-center">
-      <form id="uploadForm" action="/files" method="post" class="form-upload form-horizontal col-10" accept-charset="UTF-8" autocomplete="off">
-        <div class="form-group">
-        <div class="row mb-1">
+  <h1 class="h3 mb-3 font-weight-normal">Upload your file!</h1>
+  <div class="row text-center">
+    <form id="uploadForm" action="/files" method="post" class="form-upload form-horizontal col-10" accept-charset="UTF-8" enctype="multipart/form-data" autocomplete="off">
+      <div class="form-group">
+        <div class="row mb-1">    
           <span class="col-md-3">File</span>
-          <input type="file" name="file" class="form-control col-md-9">
+          <input type="file" name="file" class="form-control col-md-9" required>
         </div>
         <div class="row mb-1">
           <label class="col-md-3 control-label align-middle">File Name</label>
@@ -23,7 +23,7 @@
           <label class="col-3">Parts Needed</label>
           <input type="number" name="minimumShares" class="form-control col-9" value="3" required>
         </div>
-        <button class="btn btn-lg btn-primary btn-block pl-15 pr-15" type="submit">Upload</button>
-      </form>
-    </div>
+      <button class="btn btn-lg btn-primary btn-block ml-15 pr-15" type="submit">Upload</button>
+    </form>
+  </div>
 </div>

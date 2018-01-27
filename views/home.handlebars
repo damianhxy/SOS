@@ -1,11 +1,12 @@
 {{#if files}}
     <div class="row">
-    {{each}}
-        <div class="card" style="width:400px">
-            <img class="card-img-top" src="sos-file.png" alt="File image">
+    {{#each files}}
+        <div class="card" style="width:300px">
+            <img src="/img/sos-file.png" class="mx-auto"  width="100" alt="File image">
             <div class="card-body">
                 <h4 class="card-title">{{name}}</h4>
-                <a href="{{id}}" class="btn btn-primary">More Details</a>
+                <h6 class="text-muted" data-livestamp="{{time}}"></h6>
+                <a href="/files/{{_id}}" class="btn btn-primary mx-auto">More Details</a>
           </div>
         </div>
     {{/each}}
