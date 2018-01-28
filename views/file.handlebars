@@ -68,9 +68,9 @@
                 })
                 .fail(function(err) {
                     $.notify({
-                        message: err
+                        message: err.responseText
                     }, {
-                        type:"error",
+                        type: "danger",
                         delay: 10000,
                         timer: 1000,
                         placement : {
@@ -92,9 +92,9 @@
                 })
                 .fail(function(err) {
                     $.notify({
-                        message: err
+                        message: err.responseText
                     }, {
-                        type:"error",
+                        type: "danger",
                         delay: 10000,
                         timer: 1000,
                         placement : {

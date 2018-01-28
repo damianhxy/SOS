@@ -48,6 +48,10 @@ router.put("/regenerate/:id", auth, function(req, res) {
     .then(function(shares) {
         req.session.success = shares.join("\n");
         res.end();
+    })
+    .catch(function(err) {
+        console.error(err);
+        res.status(400).send("Regeneration failed");
     });
 });
 
