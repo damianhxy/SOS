@@ -13,6 +13,7 @@
     </p>
     <form action="/files/decrypt/{{file._id}}" method="post" accept-charset="UTF-8" autocomplete="off">
         <span id="sharetext">Shares for Decryption</span>
+        <small>Be careful of leading/trailing spaces!</small>
         <textarea name="shares" id="shares" class="form-control mb-3" rows="2" placeholder="Insert your shares" required></textarea>
         <span id="submitted">0 out of {{file.minimum}} required</span>
         <textarea name="sharesformatted" id="fshares" class="form-control mb-3" rows="5" disabled></textarea>
@@ -27,82 +28,82 @@
 </div>
 <script>
     $(function() {
-    $("#shares").on("input", function() {
-        var nstring = 0;
-        var string = $("#shares").val().replace(/\s/g,'');
-        $("#fshares").val("");
-        while(nstring*88 < string.length) {
-            $("#fshares").val($("#fshares").val() + (nstring + 1).toString() + ": " + string.slice(nstring*88, (nstring+1)*88) + "\n");
-            nstring++;
-        }
-        $("#submitted").text(nstring + " out of {{file.minimum}} required");
-    })
-    $("#permalink").click(function() {
-        var $temp = $("<input>");
-        $("body").append($temp);
-        $temp.val("https://sos-trainex.c9users.io/files/{{file._id}}").select();
-        document.execCommand("copy");
-        $temp.remove();
-        $.notify({
-            message: "Copied to clipboard"
-            }, {
-            type:"warning",
-            delay: 4000,
-            timer: 1000,
-            placement : {
-                from: 'bottom',
-                align: 'center'
-            },
+        $("#shares").on("input", function() {
+            var nstring = 0;
+            var string = $("#shares").val().replace(/\s/g,'');
+            $("#fshares").val("");
+            while(nstring*88 < string.length) {
+                $("#fshares").val($("#fshares").val() + (nstring + 1).toString() + ": " + string.slice(nstring*88, (nstring+1)*88) + "\n");
+                nstring++;
+            }
+            $("#submitted").text(nstring + " out of {{file.minimum}} required");
+        })
+        $("#permalink").click(function() {
+            var $temp = $("<input>");
+            $("body").append($temp);
+            $temp.val("https://sos-trainex.c9users.io/files/{{file._id}}").select();
+            document.execCommand("copy");
+            $temp.remove();
+            $.notify({
+                message: "Copied to clipboard"
+                }, {
+                type:"warning",
+                delay: 4000,
+                timer: 1000,
+                placement : {
+                    from: 'bottom',
+                    align: 'center'
+                },
+            });
+        });
+        $("#regenerate").click(function(e) {
+            if (confirm("Are you sure you want to regenerate?"))
+                $.ajax({
+                    type: "put",
+                    url: "/files/regenerate/" + "{{file._id}}",
+                    data: { shares: $("#shares").val() }
+                })
+                .then(function() {
+                    location.reload();
+                })
+                .fail(function(err) {
+                    $.notify({
+                        message: err
+                    }, {
+                        type:"error",
+                        delay: 10000,
+                        timer: 1000,
+                        placement : {
+                            from: 'bottom',
+                            align: 'center'
+                        },
+                    });
+                });
+        });
+        $("#delete").click(function(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you want to delete?"))
+                $.ajax({
+                    type: "delete",
+                    url: "/files/" + "{{file._id}}"
+                })
+                .then(function() {
+                    location.assign("/home");
+                })
+                .fail(function(err) {
+                    $.notify({
+                        message: err
+                    }, {
+                        type:"error",
+                        delay: 10000,
+                        timer: 1000,
+                        placement : {
+                            from: 'bottom',
+                            align: 'center'
+                        },
+                    });
+                });
         });
     });
-    $("#regenerate").click(function(e) {
-        if (confirm("Are you sure you want to regenerate?"))
-            $.ajax({
-                type: "put",
-                url: "/files/regenerate/" + "{{file._id}}",
-                data: { shares: $("#shares").val() }
-            })
-            .then(function(shares) {
-                $("#main").append("<div class='alert alert-success alert-dismissable mt-1'>"+ shares + "</div>")
-            })
-            .fail(function(err) {
-                $.notify({
-                    message: err
-                }, {
-                    type:"error",
-                    delay: 10000,
-                    timer: 1000,
-                    placement : {
-                        from: 'bottom',
-                        align: 'center'
-                    },
-                });
-            });
-    });
-    $("#delete").click(function(e) {
-        e.preventDefault();
-        if (confirm("Are you sure you want to delete?"))
-            $.ajax({
-                type: "delete",
-                url: "/files/" + "{{file._id}}"
-            })
-            .then(function() {
-                location.assign("/home");
-            })
-            .fail(function(err) {
-                $.notify({
-                    message: err
-                }, {
-                    type:"error",
-                    delay: 10000,
-                    timer: 1000,
-                    placement : {
-                        from: 'bottom',
-                        align: 'center'
-                    },
-                });
-            });
-    });
-});
 </script>
 

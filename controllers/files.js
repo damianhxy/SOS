@@ -46,7 +46,8 @@ router.put("/regenerate/:id", auth, function(req, res) {
     var shares = req.body.shares.split(/\s+/);
     file.regenerate(req.user.username, shares, req.params.id)
     .then(function(shares) {
-        res.send(shares.join("\n"));
+        req.session.success = shares.join("\n");
+        res.end();
     });
 });
 

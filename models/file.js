@@ -3,7 +3,7 @@ var path = require("path");
 var nedb = require("nedb");
 var moment = require("moment-timezone");
 var fs = require("fs");
-var files = new nedb({ filename: "./database/resources", autoload: true });
+var files = new nedb({ filename: "./database/files", autoload: true });
 var keygen = require("keygenerator");
 var encryptor = require("file-encryptor");
 var sssa = require("sssa-js");
@@ -55,7 +55,7 @@ exports.regenerate = function(user, shares, id) {
     return files.findOneAsync({ _id: id })
     .then(function(file) {
         if (file.owner !== user) throw Error("Not owner");
-        return exports.decrypt(shares, id)
+        return exports.decrypt(user, shares, id)
         .then(function() {
             var password = keygen.password();
             var shares = sssa.create(file.minimum, file.total, password);
@@ -64,7 +64,7 @@ exports.regenerate = function(user, shares, id) {
                 return fs.unlinkAsync(file.path);
             })
             .then(function() {
-                console.log("New Shares:", shares);
+                console.log("New shares", shares);
                 return shares;
             });
         });
@@ -106,10 +106,10 @@ exports.get = function(id) {
 };
 
 exports.getUserFiles = function(user) {
-    return files.find({ 
+    return files.find({
        $where: function() {
            return this.owner === user;
-       } 
+       }
     })
     .sort({ time: 1 })
     .execAsync()
