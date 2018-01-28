@@ -1,6 +1,7 @@
 var express = require("express");
 var fs = require("fs");
 var passport = require("passport");
+var moment = require("moment-timezone");
 var router = express.Router();
 var file = require("../models/file.js");
 var auth = require("../middlewares/auth.js");
@@ -23,7 +24,7 @@ router.post("/", auth, upload, function(req, res) { // Upload
 
 router.post("/decrypt/:id", function(req, res) { // Decrypt
     var shares = req.body.shares.split(/\s+/);
-    file.decrypt(shares, req.params.id)
+    file.decrypt(req.user, shares, req.params.id)
     .then(function(file) {
         var stream = fs.createReadStream(file.path);
         stream.pipe(res);
@@ -33,8 +34,11 @@ router.post("/decrypt/:id", function(req, res) { // Decrypt
         });
     })
     .catch(function(err) {
-       req.session.error = err.message;
-       res.status(400).redirect("/files/" + req.params.id);
+        var errMsg = "There was an error decoding. "
+        errMsg += "Ensure that you entered sufficient shares, ";
+        errMsg += "and that the shares are valid.";
+        req.session.error = errMsg;
+        res.status(400).redirect("/files/" + req.params.id);
     });
 });
 
@@ -49,12 +53,22 @@ router.put("/regenerate/:id", auth, function(req, res) {
 router.get("/:id", function(req, res) {
     file.get(req.params.id)
     .then(function(ret) {
-        res.render("file", {
-            user: req.user,
-            title: ret.name,
-            file: ret,
-            isOwner: req.user ? req.user.username === ret.owner : false
-        });
+        var expTime = ret.expiration ? moment(ret.expiration).tz("Asia/Singapore") : false;
+        var curTime = moment().tz("Asia/Singapore");
+        var isOwner = req.user ? req.user.username === ret.owner : false
+        if (expTime && curTime.isAfter(expTime) && !isOwner) {
+            res.render("fileExpired", {
+               user: req.user,
+               title: "File Expired"
+            });
+        } else {
+            res.render("file", {
+                user: req.user,
+                title: ret.name,
+                file: ret,
+                isOwner: isOwner
+            });
+        }
     });
 });
 

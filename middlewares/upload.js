@@ -5,7 +5,7 @@ var fs = require("fs");
 module.exports = multer({
     limits: {
         files: 1,
-        fields: 5, // Name, Description, File, Req, Min
+        fields: 6, // Name, Description, File, Req, Min, Expiration
         fileSize: settings.FILE_SIZE_LIMIT // 25 MB
     },
     fileFilter: function(req, file, cb) {

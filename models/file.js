@@ -22,6 +22,8 @@ exports.add = function(req) {
     var name = req.body.name;
     var description = req.body.description;
     var filePath = path.join(path.join(__dirname, "../"), req.file.path);
+    var exp = req.body.expiration;
+    exp = exp === 'N' ? false : exp.split(" ");
     // Generate key
     var password = keygen.password();
     var shares = sssa.create(minimum, total, password);
@@ -31,13 +33,15 @@ exports.add = function(req) {
         return fs.unlinkAsync(filePath);
     })
     .then(function() {
+        var curTime = moment.tz("Asia/Singapore");
         var fileInfo = {
             name: name,
             path: filePath,
             owner: req.user.username,
             total: total,
             minimum: minimum,
-            time: moment.tz("Asia/Singapore").format(),
+            time: curTime.format(),
+            expiration: exp ? curTime.add(exp[0], exp[1]).format() : exp,
             description: description
         };
         return files.insertAsync(fileInfo);
@@ -65,18 +69,26 @@ exports.regenerate = function(user, shares, id) {
             });
         });
     });
-}
+};
 
-exports.decrypt = function(shares, id) {
-    var secret = sssa.combine(shares);
+exports.decrypt = function(user, shares, id) {
+    try {
+        var secret = sssa.combine(shares);
+    } catch (err) {
+        return Promise.reject(err);
+    }
     return files.findOneAsync({ _id: id })
     .then(function(file) {
-       return encryptor.decryptFileAsync(file.path + ".dat", file.path, secret)
-       .then(function() {
+        var expTime = file.expiration ? moment(file.expiration).tz("Asia/Singapore") : false;
+        var curTime = moment().tz("Asia/Singapore");
+        var isOwner = user ? user.username === file.owner : false;
+        if (expTime && curTime.isAfter(expTime) && !isOwner) throw Error("File Expired");
+        return encryptor.decryptFileAsync(file.path + ".dat", file.path, secret)
+        .then(function() {
            return file;
-       });
+        });
     });
-}
+};
 
 exports.delete = function(user, id) {
     return files.findOneAsync({ _id: id })
@@ -87,11 +99,11 @@ exports.delete = function(user, id) {
             return files.removeAsync({ _id: id });
         });
     });
-}
+};
 
 exports.get = function(id) {
     return files.findOneAsync({ _id: id });
-}
+};
 
 exports.getUserFiles = function(user) {
     return files.find({ 
@@ -104,4 +116,4 @@ exports.getUserFiles = function(user) {
     .then(function(ret) {
         return ret;
     });
-}
+};

@@ -4,24 +4,38 @@
     <form id="uploadForm" action="/files" method="post" class="form-upload form-horizontal col-10" accept-charset="UTF-8" enctype="multipart/form-data" autocomplete="off">
       <div class="form-group">
         <div class="row mb-1 text-left">    
-          <span class="col-3">File</span>
+          <label class="col-3 pt-2">File</label>
           <input type="file" name="file" class="form-control col-9" required>
         </div>
         <div class="row mb-1 text-left">
-          <label class="col-3 control-label align-middle">File Name</label>
+          <label class="col-3 control-label pt-2">File Name</label>
           <input type="text" name="name" class="form-control col-9" placeholder="File Name" required>
         </div>
         <div class="row mb-1 text-left">
-          <label class="col-3">Description</label>
+          <label class="col-3  pt-2">Description</label>
           <textarea name="description" class="form-control col-9" placeholder="Description" row="4"></textarea>
         </div>
         <div class="row mb-1 text-left">
-          <label class="col-3">No. of Parts</label>
+          <label class="col-3 pt-2">No. of Parts</label>
           <input type="number" name="totalShares" class="form-control col-9" value="5" required>
         </div>
         <div class="row mb-1 text-left">
-          <label class="col-3">Parts Needed</label>
+          <label class="col-3 pt-2">Parts Needed</label>
           <input type="number" name="minimumShares" class="form-control col-9" value="3" required>
+        </div>
+        <div class="row mb-1 text-left">
+          <label class="col-3 pt-2">Expiration</label>
+          <select name="expiration" class="form-control col-9" value="3" required>
+            <option value="N">Never</option>
+            <option value="10 m">10 Minutes</option>
+            <option value="1 h">1 Hour</option>
+            <option value="1 d">1 Day</option>
+            <option value="1 w">1 Week</option>
+            <option value="2 w">2 Weeks</option>
+            <option value="1 M">1 Month</option>
+            <option value="6 M">6 Months</option>
+            <option value="1 y">1 Year</option>
+          </select>
         </div>
       <input class="btn btn-lg btn-primary btn-block" type="submit" value="Submit">
     </form>

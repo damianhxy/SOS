@@ -45,7 +45,8 @@ module.exports = function(app, express) {
 
     // Strategies
     passport.use("local-signin", new localStrategy(
-        function(username, password, done) {
+        { passReqToCallback: true },
+        function(req, username, password, done) {
             return user.authenticate(username, password)
             .then(function(user) {
                 console.log("Signed in user", user.username);
@@ -53,13 +54,15 @@ module.exports = function(app, express) {
             })
             .catch(function(err) {
                 console.error(err);
+                req.session.error = err.message;
                 done(null, false);
             });
         }
     ));
     
     passport.use("local-signup", new localStrategy(
-        function(username, password, done) {
+        { passReqToCallback: true },
+        function(req, username, password, done) {
             return user.add(username, password)
             .then(function(user) {
                 console.log("Signed up user", user.username);
@@ -67,6 +70,7 @@ module.exports = function(app, express) {
             })
             .catch(function(err) {
                 console.error(err);
+                req.session.error = err.message;
                 done(null, false);
             });
         }

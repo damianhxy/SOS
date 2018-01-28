@@ -38,6 +38,3 @@ Files must have:
     - timestamp
     - user
     - url
-    
-[STRETCH GOALS]
-Expiration date for files

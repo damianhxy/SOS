@@ -1,25 +1,29 @@
-<div class="container">
-    <h4 class="mb-2">{{file.name}}</h4>
+<div class="container" id="main">
+    <h4 class="mb-2">{{file.name}}<small><a id="permalink" href="#">(Copy Link)</a></small></h4>
     {{#if file.description}}
     <h5 class="mb-2 font-weight-normal">{{file.description}}</h5>
     {{/if}}
-    <h5 class="mb-2 font-weight-normal">Uploaded <span data-livestamp="{{file.time}}"></span></h5>
-    <h5 class="mb-2 font-weight-normal">Owner: {{file.owner}} {{#if isOwner}}(You){{/if}}</h5>
-    <h5 class="mb-2 font-weight-normal">{{file.minimum}} of {{file.total}} shares required</h5>
+    <p class="small">Uploaded <span data-livestamp="{{file.time}}"></span></p>
+    <p class="small">Expires
+        {{#if file.expiration}}
+        <span data-livestamp="{{file.expiration}}"></span>
+        {{else}}
+        never
+        {{/if}}
+    </p>
     <form action="/files/decrypt/{{file._id}}" method="post" accept-charset="UTF-8" autocomplete="off">
         <span id="sharetext">Shares for Decryption</span>
         <textarea name="shares" id="shares" class="form-control mb-3" rows="2" placeholder="Insert your shares" required></textarea>
-        <span id="submitted">Submitted Hashes: 0 out of {{file.minimum}} required</span>
+        <span id="submitted">0 out of {{file.minimum}} required</span>
         <textarea name="sharesformatted" id="fshares" class="form-control mb-3" rows="5" disabled></textarea>
         <button class="btn btn-md btn-primary mb-3">Submit</button>
     </form>
     {{#if isOwner}}
-    <div class="btn-group">
+    <div class="btn-group" id="btn-group">
         <button id="regenerate" class="btn btn-md btn-success">Regenerate</button>
         <button id="delete" class="btn btn-md btn-danger">Delete</button>
     </div>
     {{/if}}
-    <p><small>Share this file via the URL!</small></p>
 </div>
 <script>
     $(function() {
@@ -33,6 +37,24 @@
         }
         $("#submitted").text(nstring + " out of {{file.minimum}} required");
     })
+    $("#permalink").click(function() {
+        var $temp = $("<input>");
+        $("body").append($temp);
+        $temp.val("https://sos-trainex.c9users.io/files/{{file._id}}").select();
+        document.execCommand("copy");
+        $temp.remove();
+        $.notify({
+            message: "Copied to clipboard"
+            }, {
+            type:"warning",
+            delay: 4000,
+            timer: 1000,
+            placement : {
+                from: 'bottom',
+                align: 'center'
+            },
+        });
+    });
     $("#regenerate").click(function(e) {
         if (confirm("Are you sure you want to regenerate?"))
             $.ajax({
@@ -41,10 +63,20 @@
                 data: { shares: $("#shares").val() }
             })
             .then(function(shares) {
-                alert(shares);
+                $("#main").append("<div class='alert alert-success alert-dismissable mt-1'>"+ shares + "</div>")
             })
             .fail(function(err) {
-                alert("Regenerate failed!", err);
+                $.notify({
+                    message: err
+                }, {
+                    type:"error",
+                    delay: 10000,
+                    timer: 1000,
+                    placement : {
+                        from: 'bottom',
+                        align: 'center'
+                    },
+                });
             });
     });
     $("#delete").click(function(e) {
@@ -58,7 +90,17 @@
                 location.assign("/home");
             })
             .fail(function(err) {
-                alert("Delete failed!", err);
+                $.notify({
+                    message: err
+                }, {
+                    type:"error",
+                    delay: 10000,
+                    timer: 1000,
+                    placement : {
+                        from: 'bottom',
+                        align: 'center'
+                    },
+                });
             });
     });
 });
