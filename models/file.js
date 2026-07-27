@@ -1,119 +1,144 @@
-var Promise = require("bluebird");
-var path = require("path");
-var nedb = require("nedb");
-var moment = require("moment-timezone");
-var fs = require("fs");
-var files = new nedb({ filename: "./database/files", autoload: true });
-var keygen = require("keygenerator");
-var encryptor = require("file-encryptor");
-var sssa = require("sssa-js");
-Promise.promisifyAll(files);
-Promise.promisifyAll(files.find().constructor.prototype);
-Promise.promisifyAll(encryptor);
-Promise.promisifyAll(sssa);
-Promise.promisifyAll(fs);
+"use strict";
 
-// File Object: File name, path, owner, parts, required parts, time, description
+const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs/promises");
+const dayjs = require("dayjs");
+const sssa = require("sssa-js");
+const db = require("./db.js");
+const settings = require("../controllers/settings.js");
 
-exports.add = function(req) {
-    // Details
-    var minimum = req.body.minimumShares;
-    var total = req.body.totalShares;
-    var name = req.body.name;
-    var description = req.body.description;
-    var filePath = path.join(path.join(__dirname, "../"), req.file.path);
-    var exp = req.body.expiration;
-    exp = exp === 'N' ? false : exp.split(" ");
-    // Generate key
-    var password = keygen.password();
-    var shares = sssa.create(minimum, total, password);
-    // Encrypt File
-    return encryptor.encryptFileAsync(filePath, filePath + ".dat", password)
-    .then(function() {
-        return fs.unlinkAsync(filePath);
-    })
-    .then(function() {
-        var curTime = moment.tz("Asia/Singapore");
-        var fileInfo = {
-            name: name,
-            path: filePath,
-            owner: req.user.username,
-            total: total,
-            minimum: minimum,
-            time: curTime.format(),
-            expiration: exp ? curTime.add(exp[0], exp[1]).format() : exp,
-            description: description
-        };
-        return files.insertAsync(fileInfo);
-    })
-    .then(function(file) {
-        return [file._id, shares];
-    });
+const stmts = {
+  findById: db.prepare("SELECT * FROM files WHERE id = ?"),
+  findByOwner: db.prepare("SELECT * FROM files WHERE owner = ? ORDER BY time ASC"),
+  insert: db.prepare(
+    "INSERT INTO files (name, path, owner, total, minimum, time, expiration, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  ),
+  remove: db.prepare("DELETE FROM files WHERE id = ?"),
 };
 
-exports.regenerate = function(user, shares, id) {
-    return files.findOneAsync({ _id: id })
-    .then(function(file) {
-        if (file.owner !== user) throw Error("Not owner");
-        return exports.decrypt(user, shares, id)
-        .then(function() {
-            var password = keygen.password();
-            var shares = sssa.create(file.minimum, file.total, password);
-            return encryptor.encryptFileAsync(file.path, file.path + ".dat", password)
-            .then(function() {
-                return fs.unlinkAsync(file.path);
-            })
-            .then(function() {
-                console.log("New shares", shares);
-                return shares;
-            });
-        });
-    });
+function generateKey() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+async function encryptFile(inputPath, outputPath, password) {
+  const key = crypto.scryptSync(password, "sos-salt", settings.KEY_LENGTH);
+  const iv = crypto.randomBytes(settings.IV_LENGTH);
+  const cipher = crypto.createCipheriv(settings.ALGORITHM, key, iv);
+
+  const input = await fs.readFile(inputPath);
+  const encrypted = Buffer.concat([cipher.update(input), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  const output = Buffer.concat([iv, authTag, encrypted]);
+  await fs.writeFile(outputPath, output);
+}
+
+async function decryptFile(inputPath, outputPath, password) {
+  const key = crypto.scryptSync(password, "sos-salt", settings.KEY_LENGTH);
+  const data = await fs.readFile(inputPath);
+
+  const iv = data.subarray(0, settings.IV_LENGTH);
+  const authTag = data.subarray(settings.IV_LENGTH, settings.IV_LENGTH + 16);
+  const encrypted = data.subarray(settings.IV_LENGTH + 16);
+
+  const decipher = crypto.createDecipheriv(settings.ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+
+  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  await fs.writeFile(outputPath, decrypted);
+}
+
+exports.add = async function (req) {
+  const minimum = parseInt(req.body.minimumShares, 10);
+  const total = parseInt(req.body.totalShares, 10);
+  const name = req.body.name;
+  const description = req.body.description || "";
+  const filePath = path.resolve(req.file.path);
+  const exp = req.body.expiration;
+
+  const password = generateKey();
+  const shares = sssa.create(minimum, total, password);
+
+  await encryptFile(filePath, filePath + ".dat", password);
+  await fs.unlink(filePath);
+
+  const curTime = dayjs().toISOString();
+  let expiration = null;
+  if (exp !== "N") {
+    const parts = exp.split(" ");
+    const amount = parseInt(parts[0], 10);
+    const unit = parts[1];
+    expiration = dayjs().add(amount, unit).toISOString();
+  }
+
+  const result = stmts.insert.run(
+    name,
+    filePath,
+    req.user.username,
+    total,
+    minimum,
+    curTime,
+    expiration,
+    description,
+  );
+
+  return { id: result.lastInsertRowid, shares: shares };
 };
 
-exports.decrypt = function(user, shares, id) {
-    try {
-        var secret = sssa.combine(shares);
-    } catch (err) {
-        return Promise.reject(err);
+exports.regenerate = async function (user, shares, id) {
+  const file = stmts.findById.get(id);
+  if (!file) throw new Error("File not found");
+  if (file.owner !== user) throw new Error("Not owner");
+
+  await exports.decrypt(user, shares, id);
+
+  const password = generateKey();
+  const newShares = sssa.create(file.minimum, file.total, password);
+
+  await encryptFile(file.path, file.path + ".dat", password);
+  await fs.unlink(file.path);
+
+  return newShares;
+};
+
+exports.decrypt = async function (user, shares, id) {
+  let secret;
+  try {
+    secret = sssa.combine(shares);
+  } catch (err) {
+    throw new Error("Invalid shares: " + err.message, { cause: err });
+  }
+
+  const file = stmts.findById.get(id);
+  if (!file) throw new Error("File not found");
+
+  if (file.expiration) {
+    const expTime = dayjs(file.expiration);
+    const curTime = dayjs();
+    const isOwner = user ? user.username === file.owner : false;
+    if (curTime.isAfter(expTime) && !isOwner) {
+      throw new Error("File Expired");
     }
-    return files.findOneAsync({ _id: id })
-    .then(function(file) {
-        var expTime = file.expiration ? moment(file.expiration).tz("Asia/Singapore") : false;
-        var curTime = moment().tz("Asia/Singapore");
-        var isOwner = user ? user.username === file.owner : false;
-        if (expTime && curTime.isAfter(expTime) && !isOwner) throw Error("File Expired");
-        return encryptor.decryptFileAsync(file.path + ".dat", file.path, secret)
-        .then(function() {
-           return file;
-        });
-    });
+  }
+
+  await decryptFile(file.path + ".dat", file.path, secret);
+  return file;
 };
 
-exports.delete = function(user, id) {
-    return files.findOneAsync({ _id: id })
-    .then(function(file) {
-        if (file.owner !== user) throw Error("Not owner");
-        return fs.unlinkAsync(file.path + ".dat")
-        .then(function() {
-            return files.removeAsync({ _id: id });
-        });
-    });
+exports.delete = async function (user, id) {
+  const file = stmts.findById.get(id);
+  if (!file) throw new Error("File not found");
+  if (file.owner !== user) throw new Error("Not owner");
+
+  await fs.unlink(file.path + ".dat").catch(() => {});
+  stmts.remove.run(id);
 };
 
-exports.get = function(id) {
-    return files.findOneAsync({ _id: id });
+exports.get = function (id) {
+  return stmts.findById.get(id) || null;
 };
 
-exports.getUserFiles = function(user) {
-    return files.find({
-       $where: function() {
-           return this.owner === user;
-       }
-    })
-    .sort({ time: 1 })
-    .execAsync()
-    .then(function(ret) {
-        return ret;
-    });
+exports.getUserFiles = function (user) {
+  return stmts.findByOwner.all(user);
 };

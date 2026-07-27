@@ -1,4 +1,8 @@
 node_modules
-nedb_sessionstore
-database
-uploads
+database/*.db
+database/*.db-wal
+database/*.db-shm
+public/uploads/*
+!public/uploads/.gitkeep
+.env
+*.log

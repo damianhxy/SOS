@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+.env
+.env.example
+.eslintrc.json
+*.md
+*.log
+database/
+nedb_sessionstore
+uploads/

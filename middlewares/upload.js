@@ -1,25 +1,37 @@
-var multer = require("multer");
-var settings = require("../controllers/settings.js");
-var fs = require("fs");
+"use strict";
+
+const multer = require("multer");
+const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
+const settings = require("../controllers/settings.js");
+
+const UPLOAD_DIR = "./public/uploads";
+
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 module.exports = multer({
-    limits: {
-        files: 1,
-        fields: 6, // Name, Description, File, Req, Min, Expiration
-        fileSize: settings.FILE_SIZE_LIMIT // 25 MB
+  limits: {
+    files: 1,
+    fields: 6,
+    fileSize: settings.FILE_SIZE_LIMIT,
+  },
+  fileFilter: (req, file, cb) => {
+    const safeName = path.basename(file.originalname);
+    if (safeName !== file.originalname) {
+      return cb(new Error("Invalid filename"));
+    }
+    cb(null, true);
+  },
+  storage: multer.diskStorage({
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, crypto.randomUUID() + ext);
     },
-    fileFilter: function(req, file, cb) {
-        fs.access("./public/uploads/" + file.originalname, function(err) {
-            if (err) cb(null, true);
-            else cb(Error("File already exists"));
-        });
+    destination: (req, file, cb) => {
+      cb(null, UPLOAD_DIR);
     },
-    storage: multer.diskStorage({
-        filename: function(req, file, cb) {
-            cb(null, file.originalname);
-        },
-        destination: function(req, file, cb) {
-            cb(null, "./public/uploads");
-        },
-    })
+  }),
 }).single("file");

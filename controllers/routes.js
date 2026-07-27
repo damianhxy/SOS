@@ -1,59 +1,51 @@
-var express = require("express");
-var settings = require("./settings.js");
-var file = require("../models/file.js");
-var router = express.Router();
-var notification = require("../middlewares/notification.js");
+"use strict";
+
+const express = require("express");
+const file = require("../models/file.js");
+const notification = require("../middlewares/notification.js");
+
+const router = express.Router();
 router.use(notification);
 
-/* Pages */
-router.get("/", function(req, res) {
-    if (req.user) {
-        res.redirect("/home");
-    } else {
-        res.render("landing", {
-           title: "SOS",
-           layout: false
-        });   
-    }
-});
-
-router.get("/home", function(req, res) {
-    file.getUserFiles(req.user.username)
-    .then(function(files) {
-        res.render("home", {
-           title: "Home",
-           user: req.user,
-           files: files
-        }); 
+router.get("/", (req, res) => {
+  if (req.user) {
+    res.redirect("/home");
+  } else {
+    res.render("landing", {
+      title: "SOS",
+      layout: false,
     });
+  }
 });
 
-/* Users */
-router.use("/users", require("./users.js"));
+router.get("/home", async (req, res) => {
+  try {
+    const files = await file.getUserFiles(req.user.username);
+    res.render("home", {
+      title: "Home",
+      user: req.user,
+      files: files,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.render("home", {
+      title: "Home",
+      user: req.user,
+      files: [],
+    });
+  }
+});
 
-/* Files */
+router.use("/users", require("./users.js"));
 router.use("/files", require("./files.js"));
 
-/* 404 & 500 */
-router.use(function(req, res) {
-    res.send("Not Found");
-    /*
-    res.status(404).render("404", {
-        title: "Page Not Found",
-        user: req.user
-    });
-    */
+router.use((req, res) => {
+  res.status(404).send("Not Found");
 });
 
-router.use(function(err, req, res, next) {
-    console.error(err.stack);
-    res.send(err.stack);
-    /*
-    res.status(500).render("500", {
-        title: "Internal Server Error",
-        user: req.user
-    });
-    */
+router.use((err, req, res, _next) => {
+  console.error(err.stack);
+  res.status(500).send("Internal Server Error");
 });
 
 module.exports = router;

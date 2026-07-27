@@ -1,52 +1,69 @@
-var express = require("express");
-var passport = require("passport");
-var router = express.Router();
-var user = require("../models/user.js");
-var auth = require("../middlewares/auth.js");
+"use strict";
 
-router.get("/", function(req, res) {
-    res.render("profile", {
-        title: "Profile",
-        user: req.user
-    }) 
+const express = require("express");
+const passport = require("passport");
+const rateLimit = require("express-rate-limit");
+const {
+  validateSignup,
+  validateSignin,
+  validateEditPassword,
+} = require("../middlewares/validate.js");
+const router = express.Router();
+const userModel = require("../models/user.js");
+const auth = require("../middlewares/auth.js");
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Too many authentication attempts, please try again later.",
 });
 
-router.post("/editPassword", auth, function(req, res) {
-    user.editPassword(req)
-    .then(function() {
-        res.redirect("/home");
-    })
-    .catch(function(err) {
-        console.error(err);
-        res.status(400).redirect("/users");
+router.get("/", (req, res) => {
+  res.render("profile", {
+    title: "Profile",
+    user: req.user,
+  });
+});
+
+router.post("/editPassword", auth, validateEditPassword, async (req, res) => {
+  try {
+    await userModel.editPassword(req);
+    req.session.success = "Password updated successfully.";
+    res.redirect("/home");
+  } catch (err) {
+    console.error(err.message);
+    req.session.error = err.message;
+    res.status(400).redirect("/users");
+  }
+});
+
+router.post("/signin", authLimiter, validateSignin, (req, res, next) => {
+  passport.authenticate("local-signin", (err, user) => {
+    if (err) return next(err);
+    if (!user) return res.status(400).redirect("/");
+    req.login(user, (err) => {
+      if (err) return next(err);
+      res.redirect("/home");
     });
+  })(req, res, next);
 });
 
-router.post("/signin", function(req, res, next) {
-    passport.authenticate("local-signin", function(err, user) {
-        if (err) return next(err);
-        if (!user)
-            return res.status(400).redirect("/");
-        return req.login(user, function(err) {
-            if (err) return next(err);
-            res.redirect("/home");
-        });
-    })(req, res, next);
+router.post("/signup", authLimiter, validateSignup, (req, res, next) => {
+  passport.authenticate("local-signup", (err, user) => {
+    if (err) return next(err);
+    if (!user) return res.status(400).redirect("/");
+    req.login(user, (err) => {
+      if (err) return next(err);
+      res.redirect("/home");
+    });
+  })(req, res, next);
 });
 
-router.post("/signup", function(req, res, next) {
-    passport.authenticate("local-signup", function(err, user, info) {
-        if (err) return next(err);
-        return req.login(user, function(err) {
-            if (err) return next(err);
-            res.redirect("/home");
-        });
-    })(req, res, next);
-});
-
-router.get("/signout", auth, function(req, res) {
-   req.logout();
-   res.redirect("/");
+router.get("/signout", auth, (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.redirect("/");
+  });
 });
 
 module.exports = router;

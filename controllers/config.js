@@ -1,103 +1,148 @@
-var bodyParser = require("body-parser");
-var user = require("../models/user.js");
-var morgan = require("morgan");
-var passport = require("passport");
-var moment = require("moment-timezone");
-var compression = require("compression");
-var cookieParser = require("cookie-parser");
-var settings = require("./settings.js");
-var session = require("express-session");
-var exphbs = require("express-handlebars");
-var localStrategy = require("passport-local");
-var dateFormat = require("dateformat");
-var nedbStore = require("express-nedb-session")(session);
-var methodOverride = require("method-override");
+"use strict";
 
-module.exports = function(app, express) {
-    require("console-stamp")(console, {
-        pattern: settings.TIME_FORMAT,
-        colors: {
-            stamp: "cyan",
-            label: "magenta"
-        }
-    });
+const express = require("express");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const passport = require("passport");
+const compression = require("compression");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+const exphbs = require("express-handlebars");
+const LocalStrategy = require("passport-local");
+const SQLiteStore = require("better-sqlite3-session-store")(session);
+const methodOverride = require("method-override");
+const crypto = require("crypto");
+const db = require("../models/db.js");
+const settings = require("./settings.js");
+const userModel = require("../models/user.js");
 
-    morgan.token("time", function() {
-        return dateFormat(new Date(), settings.TIME_FORMAT);
-    });
+function csrfMiddleware(req, res, next) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    const token = crypto.randomBytes(32).toString("hex");
+    req.csrfToken = token;
+    res.locals.csrfToken = token;
+    return next();
+  }
 
-    // Middleware
-    app.use(compression());
-    app.use(express.static("public"));
-    app.use(morgan("[:time] :method :url :status :res[content-length] - :remote-addr - :response-time ms"));
-    app.use(cookieParser(settings.SECRET));
-    app.use(bodyParser.urlencoded({ extended: false }));
-    app.use(bodyParser.json());
-    app.use(session({
-        secret: settings.SECRET,
-        resave: false,
-        saveUninitialized: false,
-        store: new nedbStore({ filename: "nedb_sessionstore" })
-    }));
-    app.use(methodOverride('_method'));
-    app.use(passport.initialize());
-    app.use(passport.session());
+  const token = req.headers["x-csrf-token"] || req.body?._csrf || req.query?._csrf;
 
-    // Strategies
-    passport.use("local-signin", new localStrategy(
-        { passReqToCallback: true },
-        function(req, username, password, done) {
-            return user.authenticate(username, password)
-            .then(function(user) {
-                console.log("Signed in user", user.username);
-                done(null, user);
-            })
-            .catch(function(err) {
-                console.error(err);
-                req.session.error = err.message;
-                done(null, false);
-            });
-        }
-    ));
-    
-    passport.use("local-signup", new localStrategy(
-        { passReqToCallback: true },
-        function(req, username, password, done) {
-            return user.add(username, password)
-            .then(function(user) {
-                console.log("Signed up user", user.username);
-                done(null, user);
-            })
-            .catch(function(err) {
-                console.error(err);
-                req.session.error = err.message;
-                done(null, false);
-            });
-        }
-    ));
+  const sessionToken = req.session.csrfToken;
 
-    // Serialization
-    passport.serializeUser(function(user, done) {
-        done(null, user._id);
-    });
+  if (!token || !sessionToken || token !== sessionToken) {
+    return res.status(403).send("Invalid or missing CSRF token.");
+  }
 
-    passport.deserializeUser(function(id, done) {
-        user.get(id)
-        .then(function(user) {
-            done(null, user);
-        })
-        .catch(function(err) {
-            done(err, false);
-        });
-    });
+  next();
+}
 
-    var hbs = exphbs.create({
-        defaultLayout: "default"
-    });
+module.exports = function (app) {
+  // Security headers
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
-    app.enable("case sensitive routing");
-    app.enable("strict routing");
-    app.disable("x-powered-by");
-    app.engine("handlebars", hbs.engine);
-    app.set("view engine", "handlebars");
+  app.use(compression());
+  app.use(express.static("public"));
+  app.use(morgan("short"));
+  app.use(cookieParser(settings.SECRET));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(express.json());
+  app.use(
+    session({
+      secret: settings.SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store: new SQLiteStore({
+        client: db,
+        expired: {
+          clear: true,
+          intervalMs: 900000,
+        },
+      }),
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      },
+    }),
+  );
+  app.use(methodOverride("_method"));
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // CSRF protection - generate token on GET, validate on POST/PUT/DELETE
+  app.use((req, res, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      req.csrfToken = crypto.randomBytes(32).toString("hex");
+      req.session.csrfToken = req.csrfToken;
+    }
+    next();
+  });
+  app.use(csrfMiddleware);
+
+  // Make base URL available to all views
+  app.use((req, res, next) => {
+    res.locals.baseUrl = settings.BASE_URL;
+    next();
+  });
+
+  // Passport strategies
+  passport.use(
+    "local-signin",
+    new LocalStrategy({ passReqToCallback: true }, (req, username, password, done) => {
+      try {
+        const user = userModel.authenticate(username, password);
+        console.log("Signed in user", user.username);
+        done(null, user);
+      } catch (err) {
+        console.error(err.message);
+        req.session.error = err.message;
+        done(null, false);
+      }
+    }),
+  );
+
+  passport.use(
+    "local-signup",
+    new LocalStrategy({ passReqToCallback: true }, (req, username, password, done) => {
+      try {
+        const user = userModel.add(username, password);
+        console.log("Signed up user", user.username);
+        done(null, user);
+      } catch (err) {
+        console.error(err.message);
+        req.session.error = err.message;
+        done(null, false);
+      }
+    }),
+  );
+
+  // Serialization
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser((id, done) => {
+    try {
+      const user = userModel.get(id);
+      done(null, user);
+    } catch (err) {
+      done(err, false);
+    }
+  });
+
+  // View engine
+  const hbs = exphbs.create({
+    defaultLayout: "default",
+  });
+
+  app.enable("case sensitive routing");
+  app.enable("strict routing");
+  app.disable("x-powered-by");
+  app.engine("handlebars", hbs.engine);
+  app.set("view engine", "handlebars");
 };
