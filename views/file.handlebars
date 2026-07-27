@@ -11,12 +11,7 @@
       never
     {{/if}}
   </p>
-  <form
-    action="/files/decrypt/{{file._id}}"
-    method="post"
-    accept-charset="UTF-8"
-    autocomplete="off"
-  >
+  <form action="/files/decrypt/{{file.id}}" method="post" accept-charset="UTF-8" autocomplete="off">
     <input type="hidden" name="_csrf" value="{{csrfToken}}" />
     <span id="sharetext">Shares for Decryption</span>
     <small>Be careful of leading/trailing spaces!</small>
@@ -53,16 +48,16 @@
   (nstring+1)*88) + "\n"); nstring++; } $("#submitted").text(nstring + " out of
   {{file.minimum}}
   required"); }) $("#permalink").click(function() { var $temp = $("<input>");
-  $("body").append($temp); $temp.val(baseUrl + "/files/{{file._id}}").select();
+  $("body").append($temp); $temp.val(baseUrl + "/files/{{file.id}}").select();
   document.execCommand("copy"); $temp.remove(); $.notify({ message: "Copied to clipboard" }, {
   type:"warning", delay: 4000, timer: 1000, placement : { from: 'bottom', align: 'center' }, }); });
   $("#regenerate").click(function(e) { if (confirm("Are you sure you want to regenerate?")) $.ajax({
-  type: "put", url: "/files/regenerate/{{file._id}}", headers: { "X-CSRF-Token": csrfToken }, data:
-  { shares: $("#shares").val() } }) .then(function() { location.reload(); }) .fail(function(err) {
+  type: "put", url: "/files/regenerate/{{file.id}}", headers: { "X-CSRF-Token": csrfToken }, data: {
+  shares: $("#shares").val() } }) .then(function() { location.reload(); }) .fail(function(err) {
   $.notify({ message: err.responseText }, { type: "danger", delay: 10000, timer: 1000, placement : {
   from: 'bottom', align: 'center' }, }); }); }); $("#delete").click(function(e) {
   e.preventDefault(); if (confirm("Are you sure you want to delete?")) $.ajax({ type: "delete", url:
-  "/files/{{file._id}}", headers: { "X-CSRF-Token": csrfToken } }) .then(function() {
+  "/files/{{file.id}}", headers: { "X-CSRF-Token": csrfToken } }) .then(function() {
   location.assign("/home"); }) .fail(function(err) { $.notify({ message: err.responseText }, { type:
   "danger", delay: 10000, timer: 1000, placement : { from: 'bottom', align: 'center' }, }); }); });
   });

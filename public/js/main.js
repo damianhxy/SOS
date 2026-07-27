@@ -7,6 +7,5 @@ $(function() {
     $("#uploadForm :file").change(function() {
         const name = $(this).get(0).files.item(0).name;
         $("#uploadForm [name='name']").val(name);
-        $("#uploadName").val(name);
     });
 });

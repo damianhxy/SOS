@@ -16,25 +16,6 @@ const db = require("../models/db.js");
 const settings = require("./settings.js");
 const userModel = require("../models/user.js");
 
-function csrfMiddleware(req, res, next) {
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-    const token = crypto.randomBytes(32).toString("hex");
-    req.csrfToken = token;
-    res.locals.csrfToken = token;
-    return next();
-  }
-
-  const token = req.headers["x-csrf-token"] || req.body?._csrf || req.query?._csrf;
-
-  const sessionToken = req.session.csrfToken;
-
-  if (!token || !sessionToken || token !== sessionToken) {
-    return res.status(403).send("Invalid or missing CSRF token.");
-  }
-
-  next();
-}
-
 module.exports = function (app) {
   // Security headers
   app.use(
@@ -77,12 +58,18 @@ module.exports = function (app) {
   // CSRF protection - generate token on GET, validate on POST/PUT/DELETE
   app.use((req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-      req.csrfToken = crypto.randomBytes(32).toString("hex");
-      req.session.csrfToken = req.csrfToken;
+      req.session.csrfToken = crypto.randomBytes(32).toString("hex");
+      res.locals.csrfToken = req.session.csrfToken;
+      return next();
     }
+
+    const token = req.headers["x-csrf-token"] || req.body?._csrf || req.query?._csrf;
+    if (!token || !req.session.csrfToken || token !== req.session.csrfToken) {
+      return res.status(403).send("Invalid or missing CSRF token.");
+    }
+
     next();
   });
-  app.use(csrfMiddleware);
 
   // Make base URL available to all views
   app.use((req, res, next) => {
