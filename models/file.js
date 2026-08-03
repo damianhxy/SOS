@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs/promises");
 const dayjs = require("dayjs");
-const sssa = require("sssa-js");
+const shamir = require("shamirs-secret-sharing");
 const db = require("./db.js");
 const settings = require("../controllers/settings.js");
 
@@ -21,8 +21,12 @@ function generateKey() {
   return crypto.randomBytes(32).toString("hex");
 }
 
+const SALT_LENGTH = 16;
+const AUTH_TAG_LENGTH = 16;
+
 async function encryptFile(inputPath, outputPath, password) {
-  const key = crypto.scryptSync(password, "sos-salt", settings.KEY_LENGTH);
+  const salt = crypto.randomBytes(SALT_LENGTH);
+  const key = crypto.scryptSync(password, salt, settings.KEY_LENGTH);
   const iv = crypto.randomBytes(settings.IV_LENGTH);
   const cipher = crypto.createCipheriv(settings.ALGORITHM, key, iv);
 
@@ -30,22 +34,32 @@ async function encryptFile(inputPath, outputPath, password) {
   const encrypted = Buffer.concat([cipher.update(input), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  const output = Buffer.concat([iv, authTag, encrypted]);
+  const output = Buffer.concat([salt, iv, authTag, encrypted]);
   await fs.writeFile(outputPath, output);
 }
 
-async function decryptFile(inputPath, outputPath, password) {
-  const key = crypto.scryptSync(password, "sos-salt", settings.KEY_LENGTH);
-  const data = await fs.readFile(inputPath);
-
+function tryDecrypt(data, password, salt) {
+  const key = crypto.scryptSync(password, salt, settings.KEY_LENGTH);
   const iv = data.subarray(0, settings.IV_LENGTH);
-  const authTag = data.subarray(settings.IV_LENGTH, settings.IV_LENGTH + 16);
-  const encrypted = data.subarray(settings.IV_LENGTH + 16);
+  const authTag = data.subarray(settings.IV_LENGTH, settings.IV_LENGTH + AUTH_TAG_LENGTH);
+  const encrypted = data.subarray(settings.IV_LENGTH + AUTH_TAG_LENGTH);
 
   const decipher = crypto.createDecipheriv(settings.ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
 
-  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+}
+
+async function decryptFile(inputPath, outputPath, password) {
+  const data = await fs.readFile(inputPath);
+
+  let decrypted;
+  try {
+    decrypted = tryDecrypt(data.subarray(SALT_LENGTH), password, data.subarray(0, SALT_LENGTH));
+  } catch {
+    decrypted = tryDecrypt(data, password, "sos-salt");
+  }
+
   await fs.writeFile(outputPath, decrypted);
 }
 
@@ -58,7 +72,9 @@ exports.add = async function (req) {
   const exp = req.body.expiration;
 
   const password = generateKey();
-  const shares = sssa.create(minimum, total, password);
+  const shares = shamir
+    .split(Buffer.from(password, "utf8"), { shares: total, threshold: minimum })
+    .map((share) => Buffer.from(share).toString("base64"));
 
   await encryptFile(filePath, filePath + ".dat", password);
   await fs.unlink(filePath);
@@ -94,7 +110,9 @@ exports.regenerate = async function (user, shares, id) {
   await exports.decrypt(user, shares, id);
 
   const password = generateKey();
-  const newShares = sssa.create(file.minimum, file.total, password);
+  const newShares = shamir
+    .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
+    .map((share) => Buffer.from(share).toString("base64"));
 
   await encryptFile(file.path, file.path + ".dat", password);
   await fs.unlink(file.path);
@@ -105,7 +123,9 @@ exports.regenerate = async function (user, shares, id) {
 exports.decrypt = async function (user, shares, id) {
   let secret;
   try {
-    secret = sssa.combine(shares);
+    secret = Buffer.from(
+      shamir.combine(shares.map((share) => Buffer.from(share, "base64"))),
+    ).toString("utf8");
   } catch (err) {
     throw new Error("Invalid shares: " + err.message, { cause: err });
   }

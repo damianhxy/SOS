@@ -1,10 +1,14 @@
 "use strict";
 
+const fs = require("fs");
 const { body, validationResult } = require("express-validator");
 
 function handleValidationErrors(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    if (req.file) {
+      fs.unlink(req.file.path, () => {});
+    }
     const message = errors
       .array()
       .map((e) => e.msg)

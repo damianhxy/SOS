@@ -42,10 +42,9 @@
 </div>
 <script>
   $(function() { var csrfToken = window.CSRF_TOKEN || $("meta[name='csrf-token']").attr("content");
-  var baseUrl = "{{baseUrl}}"; $("#shares").on("input", function() { var nstring = 0; var string =
-  $("#shares").val().replace(/\s/g,''); $("#fshares").val(""); while(nstring*88 < string.length) {
-  $("#fshares").val($("#fshares").val() + (nstring + 1).toString() + ": " + string.slice(nstring*88,
-  (nstring+1)*88) + "\n"); nstring++; } $("#submitted").text(nstring + " out of
+  var baseUrl = "{{baseUrl}}"; $("#shares").on("input", function() { var tokens =
+  $("#shares").val().split(/\s+/).filter(Boolean); $("#fshares").val(tokens.map(function(share, i) {
+  return (i + 1) + ": " + share; }).join("\n")); $("#submitted").text(tokens.length + " out of
   {{file.minimum}}
   required"); }) $("#permalink").click(function() { var $temp = $("<input>");
   $("body").append($temp); $temp.val(baseUrl + "/files/{{file.id}}").select();

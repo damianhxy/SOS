@@ -29,6 +29,7 @@ router.post("/", auth, upload, validateUpload, async (req, res) => {
     req.session.success = result.shares.join("\n");
     res.redirect("/files/" + result.id);
   } catch (err) {
+    if (req.file) await fs.unlink(req.file.path).catch(() => {});
     console.error(err.message);
     req.session.error = err.message;
     res.redirect("/files");
@@ -41,18 +42,27 @@ router.post("/decrypt/:id", decryptLimiter, validateDecrypt, async (req, res) =>
     const fileData = await file.decrypt(req.user, shares, req.params.id);
     const stream = require("fs").createReadStream(fileData.path);
 
+    const cleanup = () => {
+      fs.unlink(fileData.path).catch(() => {});
+    };
+
     stream.on("error", async (err) => {
       console.error("Stream error:", err.message);
-      await fs.unlink(fileData.path).catch(() => {});
-      req.session.error = "Error streaming file.";
-      res.status(500).redirect("/files/" + req.params.id);
+      cleanup();
+      if (!res.headersSent) {
+        req.session.error = "Error streaming file.";
+        res.status(500).redirect("/files/" + req.params.id);
+      } else {
+        res.destroy(err);
+      }
     });
 
+    const fileName = String(fileData.name || "").replace(/"/g, "");
+    res.attachment(fileName);
     stream.pipe(res);
 
-    stream.on("end", async () => {
-      await fs.unlink(fileData.path).catch(() => {});
-    });
+    stream.on("end", cleanup);
+    stream.on("close", cleanup);
   } catch (err) {
     console.error(err.message);
     req.session.error =

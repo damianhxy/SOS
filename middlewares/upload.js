@@ -6,7 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const settings = require("../controllers/settings.js");
 
-const UPLOAD_DIR = "./public/uploads";
+const UPLOAD_DIR = path.join(__dirname, "..", "data", "uploads");
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });

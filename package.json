@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=18.0.0"
@@ -34,21 +33,22 @@
     "dayjs": "^1.11.10",
     "dotenv": "^16.3.1",
     "express": "^4.21.1",
-    "express-handlebars": "^8.0.1",
+    "express-handlebars": "^9.0.1",
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",
     "express-validator": "^7.3.2",
     "helmet": "^8.0.0",
     "method-override": "^3.0.0",
     "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.0.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
-    "sssa-js": "0.0.1"
+    "shamirs-secret-sharing": "^2.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
     "eslint": "^10.0.0",
+    "globals": "^15.14.0",
     "prettier": "^3.4.0"
   }
 }
