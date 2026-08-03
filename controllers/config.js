@@ -8,10 +8,10 @@ const compression = require("compression");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const exphbs = require("express-handlebars");
+const { csrfSync } = require("csrf-sync");
 const LocalStrategy = require("passport-local");
 const SQLiteStore = require("better-sqlite3-session-store")(session);
 const methodOverride = require("method-override");
-const crypto = require("crypto");
 const db = require("../models/db.js");
 const settings = require("./settings.js");
 const userModel = require("../models/user.js");
@@ -55,19 +55,24 @@ module.exports = function (app) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // CSRF protection - generate token on GET, validate on POST/PUT/DELETE
-  app.use((req, res, next) => {
-    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-      req.session.csrfToken = crypto.randomBytes(32).toString("hex");
-      res.locals.csrfToken = req.session.csrfToken;
+  // CSRF protection (multipart bodies are validated after multer parses them)
+  const csrfProtection = csrfSync({
+    getTokenFromRequest: function (req) {
+      return (
+        (req.body && req.body._csrf) ||
+        (req.query && req.query._csrf) ||
+        req.headers["x-csrf-token"]
+      );
+    },
+  });
+  app.use(function (req, res, next) {
+    if (req.is("multipart/form-data")) {
       return next();
     }
-
-    const token = req.headers["x-csrf-token"] || req.body?._csrf || req.query?._csrf;
-    if (!token || !req.session.csrfToken || token !== req.session.csrfToken) {
-      return res.status(403).send("Invalid or missing CSRF token.");
-    }
-
+    return csrfProtection.csrfSynchronisedProtection(req, res, next);
+  });
+  app.use(function (req, res, next) {
+    res.locals.csrfToken = csrfProtection.generateToken(req);
     next();
   });
 

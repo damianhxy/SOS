@@ -23,18 +23,31 @@ router.get("/", auth, (req, res) => {
   });
 });
 
-router.post("/", auth, upload, validateUpload, async (req, res) => {
-  try {
-    const result = await file.add(req);
-    req.session.success = result.shares.join("\n");
-    res.redirect("/files/" + result.id);
-  } catch (err) {
-    if (req.file) await fs.unlink(req.file.path).catch(() => {});
-    console.error(err.message);
-    req.session.error = err.message;
-    res.redirect("/files");
-  }
-});
+router.post(
+  "/",
+  auth,
+  upload,
+  (req, res, next) => {
+    const token = req.body?._csrf || req.query?._csrf || req.headers["x-csrf-token"];
+    if (!token || !req.session.csrfToken || token !== req.session.csrfToken) {
+      return res.status(403).send("Invalid or missing CSRF token.");
+    }
+    next();
+  },
+  validateUpload,
+  async (req, res) => {
+    try {
+      const result = await file.add(req);
+      req.session.success = result.shares.join("\n");
+      res.redirect("/files/" + result.id);
+    } catch (err) {
+      if (req.file) await fs.unlink(req.file.path).catch(() => {});
+      console.error(err.message);
+      req.session.error = err.message;
+      res.redirect("/files");
+    }
+  },
+);
 
 router.post("/decrypt/:id", decryptLimiter, validateDecrypt, async (req, res) => {
   try {
