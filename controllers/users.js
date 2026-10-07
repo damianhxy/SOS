@@ -18,7 +18,7 @@ const authLimiter = rateLimit({
   message: "Too many authentication attempts, please try again later.",
 });
 
-router.get("/", (req, res) => {
+router.get("/", auth, (req, res) => {
   res.render("profile", {
     title: "Profile",
     user: req.user,

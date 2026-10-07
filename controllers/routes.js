@@ -3,6 +3,7 @@
 const express = require("express");
 const file = require("../models/file.js");
 const notification = require("../middlewares/notification.js");
+const auth = require("../middlewares/auth.js");
 
 const router = express.Router();
 router.use(notification);
@@ -18,7 +19,7 @@ router.get("/", (req, res) => {
   }
 });
 
-router.get("/home", async (req, res) => {
+router.get("/home", auth, async (req, res) => {
   try {
     const files = await file.getUserFiles(req.user.username);
     res.render("home", {
