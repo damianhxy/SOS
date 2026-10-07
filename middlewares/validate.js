@@ -14,7 +14,8 @@ function handleValidationErrors(req, res, next) {
       .map((e) => e.msg)
       .join("; ");
     req.session.error = message;
-    return res.status(400).redirect("back");
+    // Express 5 no longer treats "back" specially; this is what it used to mean.
+    return res.status(400).redirect(req.get("Referrer") || "/");
   }
   next();
 }
