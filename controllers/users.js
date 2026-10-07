@@ -18,7 +18,7 @@ const authLimiter = rateLimit({
   message: "Too many authentication attempts, please try again later.",
 });
 
-router.get("/", (req, res) => {
+router.get("/", auth, (req, res) => {
   res.render("profile", {
     title: "Profile",
     user: req.user,
@@ -59,10 +59,14 @@ router.post("/signup", authLimiter, validateSignup, (req, res, next) => {
   })(req, res, next);
 });
 
-router.get("/signout", auth, (req, res, next) => {
+router.post("/signout", auth, (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
-    res.redirect("/");
+    req.session.destroy((err) => {
+      if (err) return next(err);
+      res.clearCookie("connect.sid");
+      res.redirect("/");
+    });
   });
 });
 

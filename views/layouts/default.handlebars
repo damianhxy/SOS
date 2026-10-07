@@ -26,7 +26,10 @@
             <a class="nav-link" href="/home">Home</a>
             <a class="nav-link" href="/files">Upload</a>
             <a class="nav-link" href="/users">{{user.username}}</a>
-            <a class="nav-link" href="/users/signout">Sign Out</a>
+            <form action="/users/signout" method="post">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}" />
+              <button type="submit" class="nav-link btn btn-link">Sign Out</button>
+            </form>
           {{else}}
             <span class="nav-link font-weight-bold">Welcome guest!</span>
             <a class="nav-link" href="/">Home</a>
