@@ -7,6 +7,7 @@ const dayjs = require("dayjs");
 const shamir = require("shamirs-secret-sharing");
 const db = require("./db.js");
 const settings = require("../controllers/settings.js");
+const legacyShares = require("./legacy-shares.js");
 
 const stmts = {
   findById: db.prepare("SELECT * FROM files WHERE id = ?"),
@@ -123,9 +124,11 @@ exports.regenerate = async function (user, shares, id) {
 exports.decrypt = async function (user, shares, id) {
   let secret;
   try {
-    secret = Buffer.from(
-      shamir.combine(shares.map((share) => Buffer.from(share, "base64"))),
-    ).toString("utf8");
+    secret = legacyShares.isLegacyShareSet(shares)
+      ? legacyShares.combine(shares)
+      : Buffer.from(shamir.combine(shares.map((share) => Buffer.from(share, "base64")))).toString(
+          "utf8",
+        );
   } catch (err) {
     throw new Error("Invalid shares: " + err.message, { cause: err });
   }
