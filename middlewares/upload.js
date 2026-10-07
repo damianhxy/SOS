@@ -12,7 +12,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-module.exports = multer({
+const parse = multer({
   limits: {
     files: 1,
     fields: 6,
@@ -35,3 +35,24 @@ module.exports = multer({
     },
   }),
 }).single("file");
+
+// Report rejected or missing uploads on the upload form instead of the generic
+// 500 handler or an internal error message.
+module.exports = function (req, res, next) {
+  parse(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        req.session.error = "Upload rejected: " + err.message;
+      } else {
+        console.error(err.message);
+        req.session.error = "Upload failed.";
+      }
+      return res.redirect("/files");
+    }
+    if (!req.file) {
+      req.session.error = "Please choose a file to upload.";
+      return res.redirect("/files");
+    }
+    next();
+  });
+};
