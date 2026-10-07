@@ -184,7 +184,14 @@ exports.delete = function (user, id) {
   return withFile(id, async (file) => {
     if (file.owner !== user) throw new Error("Not owner");
 
-    await fs.unlink(file.path + ".dat").catch(() => {});
+    try {
+      await fs.unlink(file.path + ".dat");
+    } catch (err) {
+      if (err.code !== "ENOENT") {
+        console.error(err.message);
+        throw new Error("Could not remove the encrypted file", { cause: err });
+      }
+    }
     stmts.remove.run(file.id);
   });
 };
