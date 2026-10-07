@@ -40,11 +40,15 @@ async function encryptFile(inputPath, outputPath, password) {
   await fs.writeFile(outputPath, encryptBuffer(input, password));
 }
 
-function tryDecrypt(data, password, salt) {
-  const key = crypto.scryptSync(password, salt, settings.KEY_LENGTH);
-  const iv = data.subarray(0, settings.IV_LENGTH);
-  const authTag = data.subarray(settings.IV_LENGTH, settings.IV_LENGTH + AUTH_TAG_LENGTH);
-  const encrypted = data.subarray(settings.IV_LENGTH + AUTH_TAG_LENGTH);
+function decryptBuffer(data, password) {
+  const ivStart = SALT_LENGTH;
+  const tagStart = ivStart + settings.IV_LENGTH;
+  const dataStart = tagStart + AUTH_TAG_LENGTH;
+
+  const key = crypto.scryptSync(password, data.subarray(0, ivStart), settings.KEY_LENGTH);
+  const iv = data.subarray(ivStart, tagStart);
+  const authTag = data.subarray(tagStart, dataStart);
+  const encrypted = data.subarray(dataStart);
 
   const decipher = crypto.createDecipheriv(settings.ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
@@ -53,13 +57,7 @@ function tryDecrypt(data, password, salt) {
 }
 
 async function decryptFile(inputPath, password) {
-  const data = await fs.readFile(inputPath);
-
-  try {
-    return tryDecrypt(data.subarray(SALT_LENGTH), password, data.subarray(0, SALT_LENGTH));
-  } catch {
-    return tryDecrypt(data, password, "sos-salt");
-  }
+  return decryptBuffer(await fs.readFile(inputPath), password);
 }
 
 // Regeneration and deletion replace or remove the only ciphertext of a file, so
