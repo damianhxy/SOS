@@ -76,30 +76,37 @@ exports.add = async function (req) {
     .split(Buffer.from(password, "utf8"), { shares: total, threshold: minimum })
     .map((share) => Buffer.from(share).toString("base64"));
 
-  await encryptFile(filePath, filePath + ".dat", password);
-  await fs.unlink(filePath);
+  const encryptedPath = filePath + ".dat";
+  let inserted = false;
+  try {
+    await encryptFile(filePath, encryptedPath, password);
+    await fs.unlink(filePath);
 
-  const curTime = dayjs().toISOString();
-  let expiration = null;
-  if (exp !== "N") {
-    const parts = exp.split(" ");
-    const amount = parseInt(parts[0], 10);
-    const unit = parts[1];
-    expiration = dayjs().add(amount, unit).toISOString();
+    const curTime = dayjs().toISOString();
+    let expiration = null;
+    if (exp !== "N") {
+      const parts = exp.split(" ");
+      const amount = parseInt(parts[0], 10);
+      const unit = parts[1];
+      expiration = dayjs().add(amount, unit).toISOString();
+    }
+
+    const result = stmts.insert.run(
+      name,
+      filePath,
+      req.user.username,
+      total,
+      minimum,
+      curTime,
+      expiration,
+      description,
+    );
+    inserted = true;
+    return { id: result.lastInsertRowid, shares: shares };
+  } finally {
+    await fs.unlink(filePath).catch(() => {});
+    if (!inserted) await fs.unlink(encryptedPath).catch(() => {});
   }
-
-  const result = stmts.insert.run(
-    name,
-    filePath,
-    req.user.username,
-    total,
-    minimum,
-    curTime,
-    expiration,
-    description,
-  );
-
-  return { id: result.lastInsertRowid, shares: shares };
 };
 
 exports.regenerate = async function (user, shares, id) {
