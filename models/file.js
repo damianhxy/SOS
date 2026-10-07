@@ -135,7 +135,7 @@ exports.add = async function (req) {
 
 exports.regenerate = function (user, shares, id) {
   return withFile(id, async (file) => {
-    if (file.owner !== user) throw new Error("Not owner");
+    if (file.owner !== user.username) throw new Error("Not owner");
 
     const decrypted = await exports.decrypt(user, shares, file.id);
     const replacementPath = file.path + ".dat." + crypto.randomUUID() + ".tmp";

@@ -68,7 +68,7 @@ router.post("/decrypt/:id", decryptLimiter, validateDecrypt, async (req, res) =>
 router.put("/regenerate/:id", auth, validateDecrypt, async (req, res) => {
   try {
     const shares = req.body.shares.split(/\s+/).filter((s) => s.length > 0);
-    const newShares = await file.regenerate(req.user.username, shares, req.params.id);
+    const newShares = await file.regenerate(req.user, shares, req.params.id);
     req.session.success = newShares.join("\n");
     res.end();
   } catch (err) {
