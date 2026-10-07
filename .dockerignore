@@ -9,3 +9,4 @@ node_modules
 database/
 nedb_sessionstore
 uploads/
+data/
