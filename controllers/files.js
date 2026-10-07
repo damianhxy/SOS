@@ -27,9 +27,10 @@ router.post(
   "/",
   auth,
   upload,
-  (req, res, next) => {
+  async (req, res, next) => {
     const token = req.body?._csrf || req.query?._csrf || req.headers["x-csrf-token"];
     if (!token || !req.session.csrfToken || token !== req.session.csrfToken) {
+      if (req.file) await fs.unlink(req.file.path).catch(() => {});
       return res.status(403).send("Invalid or missing CSRF token.");
     }
     next();
