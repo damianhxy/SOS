@@ -114,15 +114,19 @@ exports.regenerate = async function (user, shares, id) {
   if (file.owner !== user) throw new Error("Not owner");
 
   const decrypted = await exports.decrypt(user, shares, id);
+  const replacementPath = file.path + ".dat." + crypto.randomUUID() + ".tmp";
+  try {
+    const password = generateKey();
+    const newShares = shamir
+      .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
+      .map((share) => Buffer.from(share).toString("base64"));
 
-  const password = generateKey();
-  const newShares = shamir
-    .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
-    .map((share) => Buffer.from(share).toString("base64"));
-
-  await fs.writeFile(file.path + ".dat", encryptBuffer(decrypted.data, password));
-
-  return newShares;
+    await fs.writeFile(replacementPath, encryptBuffer(decrypted.data, password));
+    await fs.rename(replacementPath, file.path + ".dat");
+    return newShares;
+  } finally {
+    await fs.unlink(replacementPath).catch(() => {});
+  }
 };
 
 exports.decrypt = async function (user, shares, id) {
