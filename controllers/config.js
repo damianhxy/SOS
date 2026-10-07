@@ -55,7 +55,9 @@ module.exports = function (app) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // CSRF protection (multipart bodies are validated after multer parses them)
+  // CSRF protection. Multipart bodies are only parsed by multer inside the upload
+  // route (POST /files), which checks the token itself; every other request,
+  // multipart or not, is checked here.
   const csrfProtection = csrfSync({
     getTokenFromRequest: function (req) {
       return (
@@ -66,7 +68,7 @@ module.exports = function (app) {
     },
   });
   app.use(function (req, res, next) {
-    if (req.is("multipart/form-data")) {
+    if (req.method === "POST" && req.path === "/files" && req.is("multipart/form-data")) {
       return next();
     }
     return csrfProtection.csrfSynchronisedProtection(req, res, next);
