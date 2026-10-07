@@ -62,6 +62,31 @@ async function decryptFile(inputPath, password) {
   }
 }
 
+// Regeneration and deletion replace or remove the only ciphertext of a file, so
+// they run one at a time per file: each sees the result of the previous one.
+const pendingFileOps = new Map();
+
+function withFile(id, operation) {
+  const found = stmts.findById.get(id);
+  if (!found) return Promise.reject(new Error("File not found"));
+
+  const previous = pendingFileOps.get(found.id) || Promise.resolve();
+  const result = previous.then(() => {
+    const file = stmts.findById.get(found.id);
+    if (!file) throw new Error("File not found");
+    return operation(file);
+  });
+  const settled = result.then(
+    () => {},
+    () => {},
+  );
+  pendingFileOps.set(found.id, settled);
+  settled.then(() => {
+    if (pendingFileOps.get(found.id) === settled) pendingFileOps.delete(found.id);
+  });
+  return result;
+}
+
 exports.add = async function (req) {
   const minimum = parseInt(req.body.minimumShares, 10);
   const total = parseInt(req.body.totalShares, 10);
@@ -108,25 +133,25 @@ exports.add = async function (req) {
   }
 };
 
-exports.regenerate = async function (user, shares, id) {
-  const file = stmts.findById.get(id);
-  if (!file) throw new Error("File not found");
-  if (file.owner !== user) throw new Error("Not owner");
+exports.regenerate = function (user, shares, id) {
+  return withFile(id, async (file) => {
+    if (file.owner !== user) throw new Error("Not owner");
 
-  const decrypted = await exports.decrypt(user, shares, id);
-  const replacementPath = file.path + ".dat." + crypto.randomUUID() + ".tmp";
-  try {
-    const password = generateKey();
-    const newShares = shamir
-      .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
-      .map((share) => Buffer.from(share).toString("base64"));
+    const decrypted = await exports.decrypt(user, shares, file.id);
+    const replacementPath = file.path + ".dat." + crypto.randomUUID() + ".tmp";
+    try {
+      const password = generateKey();
+      const newShares = shamir
+        .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
+        .map((share) => Buffer.from(share).toString("base64"));
 
-    await fs.writeFile(replacementPath, encryptBuffer(decrypted.data, password));
-    await fs.rename(replacementPath, file.path + ".dat");
-    return newShares;
-  } finally {
-    await fs.unlink(replacementPath).catch(() => {});
-  }
+      await fs.writeFile(replacementPath, encryptBuffer(decrypted.data, password));
+      await fs.rename(replacementPath, file.path + ".dat");
+      return newShares;
+    } finally {
+      await fs.unlink(replacementPath).catch(() => {});
+    }
+  });
 };
 
 exports.decrypt = async function (user, shares, id) {
@@ -155,13 +180,13 @@ exports.decrypt = async function (user, shares, id) {
   return { file, data };
 };
 
-exports.delete = async function (user, id) {
-  const file = stmts.findById.get(id);
-  if (!file) throw new Error("File not found");
-  if (file.owner !== user) throw new Error("Not owner");
+exports.delete = function (user, id) {
+  return withFile(id, async (file) => {
+    if (file.owner !== user) throw new Error("Not owner");
 
-  await fs.unlink(file.path + ".dat").catch(() => {});
-  stmts.remove.run(id);
+    await fs.unlink(file.path + ".dat").catch(() => {});
+    stmts.remove.run(file.id);
+  });
 };
 
 exports.get = function (id) {
