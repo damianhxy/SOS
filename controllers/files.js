@@ -27,9 +27,10 @@ router.post(
   "/",
   auth,
   upload,
-  (req, res, next) => {
+  async (req, res, next) => {
     const token = req.body?._csrf || req.query?._csrf || req.headers["x-csrf-token"];
     if (!token || !req.session.csrfToken || token !== req.session.csrfToken) {
+      if (req.file) await fs.unlink(req.file.path).catch(() => {});
       return res.status(403).send("Invalid or missing CSRF token.");
     }
     next();
@@ -52,30 +53,10 @@ router.post(
 router.post("/decrypt/:id", decryptLimiter, validateDecrypt, async (req, res) => {
   try {
     const shares = req.body.shares.split(/\s+/).filter((s) => s.length > 0);
-    const fileData = await file.decrypt(req.user, shares, req.params.id);
-    const stream = require("fs").createReadStream(fileData.path);
-
-    const cleanup = () => {
-      fs.unlink(fileData.path).catch(() => {});
-    };
-
-    stream.on("error", async (err) => {
-      console.error("Stream error:", err.message);
-      cleanup();
-      if (!res.headersSent) {
-        req.session.error = "Error streaming file.";
-        res.status(500).redirect("/files/" + req.params.id);
-      } else {
-        res.destroy(err);
-      }
-    });
-
-    const fileName = String(fileData.name || "").replace(/"/g, "");
+    const decrypted = await file.decrypt(req.user, shares, req.params.id);
+    const fileName = String(decrypted.file.name || "").replace(/"/g, "");
     res.attachment(fileName);
-    stream.pipe(res);
-
-    stream.on("end", cleanup);
-    stream.on("close", cleanup);
+    res.send(decrypted.data);
   } catch (err) {
     console.error(err.message);
     req.session.error =
@@ -87,7 +68,7 @@ router.post("/decrypt/:id", decryptLimiter, validateDecrypt, async (req, res) =>
 router.put("/regenerate/:id", auth, validateDecrypt, async (req, res) => {
   try {
     const shares = req.body.shares.split(/\s+/).filter((s) => s.length > 0);
-    const newShares = await file.regenerate(req.user.username, shares, req.params.id);
+    const newShares = await file.regenerate(req.user, shares, req.params.id);
     req.session.success = newShares.join("\n");
     res.end();
   } catch (err) {
