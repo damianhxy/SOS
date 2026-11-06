@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The engines minimum: fails when a dependency update raises its own Node floor.
+          - name: floor
+            node-version-file: .node-version
+          # The current LTS line, followed without edits.
+          - name: lts
+            node-version: lts/*
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          node-version-file: ${{ matrix.node-version-file }}
+          cache: npm
+      - run: npm ci --engine-strict
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+
+  # Separate job: a newly published advisory turns this red without hiding test results.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - run: npm audit --omit=dev
+
+  report:
+    # Scheduled runs only: keep one open issue while failing, close it when green.
+    if: always() && github.event_name == 'schedule'
+    needs: [test, audit]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ contains(needs.*.result, 'failure') }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Scheduled CI failed"
+          num=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ "$FAILED" = "true" ]; then
+            if [ -n "$num" ]; then gh issue comment "$num" --body "Still failing: $RUN_URL"
+            else gh issue create --title "$title" --body "The weekly CI run failed: $RUN_URL"; fi
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment "Passing again: $RUN_URL"
+          fi
