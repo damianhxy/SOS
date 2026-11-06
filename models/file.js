@@ -24,25 +24,31 @@ function generateKey() {
 const SALT_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
-async function encryptFile(inputPath, outputPath, password) {
+function encryptBuffer(input, password) {
   const salt = crypto.randomBytes(SALT_LENGTH);
   const key = crypto.scryptSync(password, salt, settings.KEY_LENGTH);
   const iv = crypto.randomBytes(settings.IV_LENGTH);
   const cipher = crypto.createCipheriv(settings.ALGORITHM, key, iv);
 
-  const input = await fs.readFile(inputPath);
   const encrypted = Buffer.concat([cipher.update(input), cipher.final()]);
   const authTag = cipher.getAuthTag();
-
-  const output = Buffer.concat([salt, iv, authTag, encrypted]);
-  await fs.writeFile(outputPath, output);
+  return Buffer.concat([salt, iv, authTag, encrypted]);
 }
 
-function tryDecrypt(data, password, salt) {
-  const key = crypto.scryptSync(password, salt, settings.KEY_LENGTH);
-  const iv = data.subarray(0, settings.IV_LENGTH);
-  const authTag = data.subarray(settings.IV_LENGTH, settings.IV_LENGTH + AUTH_TAG_LENGTH);
-  const encrypted = data.subarray(settings.IV_LENGTH + AUTH_TAG_LENGTH);
+async function encryptFile(inputPath, outputPath, password) {
+  const input = await fs.readFile(inputPath);
+  await fs.writeFile(outputPath, encryptBuffer(input, password));
+}
+
+function decryptBuffer(data, password) {
+  const ivStart = SALT_LENGTH;
+  const tagStart = ivStart + settings.IV_LENGTH;
+  const dataStart = tagStart + AUTH_TAG_LENGTH;
+
+  const key = crypto.scryptSync(password, data.subarray(0, ivStart), settings.KEY_LENGTH);
+  const iv = data.subarray(ivStart, tagStart);
+  const authTag = data.subarray(tagStart, dataStart);
+  const encrypted = data.subarray(dataStart);
 
   const decipher = crypto.createDecipheriv(settings.ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
@@ -50,17 +56,33 @@ function tryDecrypt(data, password, salt) {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
 
-async function decryptFile(inputPath, outputPath, password) {
-  const data = await fs.readFile(inputPath);
+async function decryptFile(inputPath, password) {
+  return decryptBuffer(await fs.readFile(inputPath), password);
+}
 
-  let decrypted;
-  try {
-    decrypted = tryDecrypt(data.subarray(SALT_LENGTH), password, data.subarray(0, SALT_LENGTH));
-  } catch {
-    decrypted = tryDecrypt(data, password, "sos-salt");
-  }
+// Regeneration and deletion replace or remove the only ciphertext of a file, so
+// they run one at a time per file: each sees the result of the previous one.
+const pendingFileOps = new Map();
 
-  await fs.writeFile(outputPath, decrypted);
+function withFile(id, operation) {
+  const found = stmts.findById.get(id);
+  if (!found) return Promise.reject(new Error("File not found"));
+
+  const previous = pendingFileOps.get(found.id) || Promise.resolve();
+  const result = previous.then(() => {
+    const file = stmts.findById.get(found.id);
+    if (!file) throw new Error("File not found");
+    return operation(file);
+  });
+  const settled = result.then(
+    () => {},
+    () => {},
+  );
+  pendingFileOps.set(found.id, settled);
+  settled.then(() => {
+    if (pendingFileOps.get(found.id) === settled) pendingFileOps.delete(found.id);
+  });
+  return result;
 }
 
 exports.add = async function (req) {
@@ -76,48 +98,58 @@ exports.add = async function (req) {
     .split(Buffer.from(password, "utf8"), { shares: total, threshold: minimum })
     .map((share) => Buffer.from(share).toString("base64"));
 
-  await encryptFile(filePath, filePath + ".dat", password);
-  await fs.unlink(filePath);
+  const encryptedPath = filePath + ".dat";
+  let inserted = false;
+  try {
+    await encryptFile(filePath, encryptedPath, password);
+    await fs.unlink(filePath);
 
-  const curTime = dayjs().toISOString();
-  let expiration = null;
-  if (exp !== "N") {
-    const parts = exp.split(" ");
-    const amount = parseInt(parts[0], 10);
-    const unit = parts[1];
-    expiration = dayjs().add(amount, unit).toISOString();
+    const curTime = dayjs().toISOString();
+    let expiration = null;
+    if (exp !== "N") {
+      const parts = exp.split(" ");
+      const amount = parseInt(parts[0], 10);
+      const unit = parts[1];
+      expiration = dayjs().add(amount, unit).toISOString();
+    }
+
+    const result = stmts.insert.run(
+      name,
+      filePath,
+      req.user.username,
+      total,
+      minimum,
+      curTime,
+      expiration,
+      description,
+    );
+    inserted = true;
+    return { id: result.lastInsertRowid, shares: shares };
+  } finally {
+    await fs.unlink(filePath).catch(() => {});
+    if (!inserted) await fs.unlink(encryptedPath).catch(() => {});
   }
-
-  const result = stmts.insert.run(
-    name,
-    filePath,
-    req.user.username,
-    total,
-    minimum,
-    curTime,
-    expiration,
-    description,
-  );
-
-  return { id: result.lastInsertRowid, shares: shares };
 };
 
-exports.regenerate = async function (user, shares, id) {
-  const file = stmts.findById.get(id);
-  if (!file) throw new Error("File not found");
-  if (file.owner !== user) throw new Error("Not owner");
+exports.regenerate = function (user, shares, id) {
+  return withFile(id, async (file) => {
+    if (file.owner !== user.username) throw new Error("Not owner");
 
-  await exports.decrypt(user, shares, id);
+    const decrypted = await exports.decrypt(user, shares, file.id);
+    const replacementPath = file.path + ".dat." + crypto.randomUUID() + ".tmp";
+    try {
+      const password = generateKey();
+      const newShares = shamir
+        .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
+        .map((share) => Buffer.from(share).toString("base64"));
 
-  const password = generateKey();
-  const newShares = shamir
-    .split(Buffer.from(password, "utf8"), { shares: file.total, threshold: file.minimum })
-    .map((share) => Buffer.from(share).toString("base64"));
-
-  await encryptFile(file.path, file.path + ".dat", password);
-  await fs.unlink(file.path);
-
-  return newShares;
+      await fs.writeFile(replacementPath, encryptBuffer(decrypted.data, password));
+      await fs.rename(replacementPath, file.path + ".dat");
+      return newShares;
+    } finally {
+      await fs.unlink(replacementPath).catch(() => {});
+    }
+  });
 };
 
 exports.decrypt = async function (user, shares, id) {
@@ -142,17 +174,24 @@ exports.decrypt = async function (user, shares, id) {
     }
   }
 
-  await decryptFile(file.path + ".dat", file.path, secret);
-  return file;
+  const data = await decryptFile(file.path + ".dat", secret);
+  return { file, data };
 };
 
-exports.delete = async function (user, id) {
-  const file = stmts.findById.get(id);
-  if (!file) throw new Error("File not found");
-  if (file.owner !== user) throw new Error("Not owner");
+exports.delete = function (user, id) {
+  return withFile(id, async (file) => {
+    if (file.owner !== user) throw new Error("Not owner");
 
-  await fs.unlink(file.path + ".dat").catch(() => {});
-  stmts.remove.run(id);
+    try {
+      await fs.unlink(file.path + ".dat");
+    } catch (err) {
+      if (err.code !== "ENOENT") {
+        console.error(err.message);
+        throw new Error("Could not remove the encrypted file", { cause: err });
+      }
+    }
+    stmts.remove.run(file.id);
+  });
 };
 
 exports.get = function (id) {
